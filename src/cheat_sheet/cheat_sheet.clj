@@ -49,7 +49,8 @@
   "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
 [row col value cheat-sheet]
 (let [row-idx (get-row-idx row cheat-sheet)]
-  (reduce (fn [acc col]
+  (reduce (fn
+            [acc col]
             (update-sheet acc row-idx (get-col-idx col cheat-sheet) value))
           cheat-sheet
           col)))
@@ -57,4 +58,6 @@
 (defn- set-value-more-cols!
   "Updates the cheat-sheet matrix by setting the specified value at the given row and multiple columns."
   [cheat-sheet row cols value]
-(swap! cheat-sheet (fn [ch] (set-value! row cols value ch))))
+(swap! cheat-sheet (fn
+                     [ch]
+                     (set-value! row cols value ch))))
