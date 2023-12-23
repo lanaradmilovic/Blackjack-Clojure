@@ -36,7 +36,7 @@
   (.indexOf (:dealers-card cheat-sheet) col-name))
 
 (defn- update-sheet
-  "Updates the cheat-sheet matrix for the provided row and column with the given value."
+  "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
   [cheat-sheet row col value]
   (update-in cheat-sheet [:values row col] (constantly value)))
 
@@ -45,3 +45,16 @@
   [cheat-sheet player-card dealer-card]
   (get-in (:values cheat-sheet) [(get-row-idx player-card cheat-sheet) (get-col-idx (value-for-ch dealer-card) cheat-sheet)]))
 
+(defn- set-value!
+  "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
+[row col value cheat-sheet]
+(let [row-idx (get-row-idx row cheat-sheet)]
+  (reduce (fn [acc col]
+            (update-sheet acc row-idx (get-col-idx col cheat-sheet) value))
+          cheat-sheet
+          col)))
+
+(defn- set-value-more-cols!
+  "Updates the cheat-sheet matrix by setting the specified value at the given row and multiple columns."
+  [cheat-sheet row cols value]
+(swap! cheat-sheet (fn [ch] (set-value! row cols value ch))))
