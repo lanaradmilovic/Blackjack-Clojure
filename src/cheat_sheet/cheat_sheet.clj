@@ -16,6 +16,7 @@
   (:dealers-card cheat-sheet))
 (def row-names (get-rows @blackjack-cheat-sheet))
 (def col-names (get-cols @blackjack-cheat-sheet))
+
 (defn- value-for-ch
   "Returns a cheat-sheet representation of the card value."
   [val]
@@ -25,9 +26,22 @@
     "queen" "10"
     "king" "10"
     val))
+
 (defn- get-row-idx
   [row-name cheat-sheet]
   (.indexOf (:players-cards cheat-sheet) row-name))
+
 (defn- get-col-idx
   [col-name cheat-sheet]
   (.indexOf (:dealers-card cheat-sheet) col-name))
+
+(defn- update-sheet
+  "Updates the cheat-sheet matrix for the provided row and column with the given value."
+  [cheat-sheet row col value]
+  (update-in cheat-sheet [:values row col] (constantly value)))
+
+(defn- get-move
+  "Returns move recommendation for player based on player's and dealer's cards."
+  [cheat-sheet player-card dealer-card]
+  (get-in (:values cheat-sheet) [(get-row-idx player-card cheat-sheet) (get-col-idx (value-for-ch dealer-card) cheat-sheet)]))
+
