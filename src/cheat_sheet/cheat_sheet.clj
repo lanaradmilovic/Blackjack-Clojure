@@ -8,10 +8,10 @@
                               :dealers-card  ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"]
                               :values        (vec (repeat row-num (vec (repeat col-num "H"))))}))
 
-(defn- get-rows
+(defn get-rows
   [cheat-sheet]
   (:players-cards cheat-sheet))
-(defn- get-cols
+(defn get-cols
   [cheat-sheet]
   (:dealers-card cheat-sheet))
 (def row-names (get-rows @blackjack-cheat-sheet))
@@ -20,12 +20,13 @@
 (defn value-for-ch
   "Returns a cheat-sheet representation of the card value."
   [val]
-  (case val
+  (case (clojure.string/trim (clojure.string/lower-case val))
     "ace" "A"
     "jack" "10"
     "queen" "10"
     "king" "10"
     val))
+
 
 (defn- get-row-idx
   [row-name cheat-sheet]
@@ -46,8 +47,11 @@
   "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
   [cheat-sheet row col value]
   (try
+    (and
+      (<= 0 (dec (count (:values cheat-sheet))))
+      (<= 0 (dec (count (first (:values cheat-sheet))))))
     (update-in cheat-sheet [:values row col] (constantly value))
-    (catch IndexOutOfBoundsException e
+    (catch Exception e
       (println "Non-existing player's or dealer's card.")
       nil)))
 
@@ -74,7 +78,7 @@
 
 (defn set-value!
   "Updates the cheat-sheet matrix atom using 'set-value'"
-  [cheat-sheet row cols value]
+  [row cols value cheat-sheet]
 (swap! cheat-sheet (fn
                      [ch]
                      (set-value row cols value ch))))
@@ -85,8 +89,7 @@
   (if (and
         (every? #(some #{%} all-rows) [row])
         (every? #(some #{%} all-cols) cols))
-    (set-value! cheat-sheet row cols value)))
-
+    (set-value! row cols value cheat-sheet)))
 
 (update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "9" ["3" "4" "5" "6"] "DD")
 (update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "10" ["2" "3" "4" "5" "6" "7" "8" "9"] "DD")
