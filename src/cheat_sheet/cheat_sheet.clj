@@ -61,3 +61,39 @@
 (swap! cheat-sheet (fn
                      [ch]
                      (set-value! row cols value ch))))
+
+(defn update-cheat-sheet-cell [all-rows all-cols cheat-sheet row cols value]
+  "Updates the cheat-sheet matrix using 'set-value-more-cols!' for desired field located at the intersection
+  of the specified row and columns."
+  (if (and
+        (every? #(some #{%} all-rows) [row])
+        (every? #(some #{%} all-cols) cols))
+    (set-value-more-cols! cheat-sheet row cols value)))
+
+
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "9" ["3" "4" "5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "10" ["2" "3" "4" "5" "6" "7" "8" "9"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "11" ["2" "3" "4" "5" "6" "7" "8" "9" "10"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "12" ["4" "5" "6"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "13" ["2" "3" "4" "5" "6"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "14" ["2" "3" "4" "5" "6"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "15" ["2" "3" "4" "5" "6"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "16" ["2" "3" "4" "5" "6"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "17" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A2" ["5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A3" ["5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A4" ["4" "5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A5" ["4" "5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A6" ["3" "4" "5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A7" ["3" "4" "5" "6"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A8" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "A9" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "22" ["4" "5" "6" "7"] "P")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "33" ["4" "5" "6" "7"] "P")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "55" ["2" "3" "4" "5" "6" "7" "8" "9"] "DD")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "66" ["3" "4" "5" "6"] "P")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "77" ["2" "3" "4" "5" "6" "7"] "P")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "88" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "P")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "99" ["7" "10" "A"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "1010" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "S")
+(update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "AA" ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"] "P")
