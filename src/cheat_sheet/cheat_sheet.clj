@@ -17,7 +17,7 @@
 (def row-names (get-rows @blackjack-cheat-sheet))
 (def col-names (get-cols @blackjack-cheat-sheet))
 
-(defn- value-for-ch
+(defn value-for-ch
   "Returns a cheat-sheet representation of the card value."
   [val]
   (case val
@@ -29,38 +29,55 @@
 
 (defn- get-row-idx
   [row-name cheat-sheet]
-  (.indexOf (:players-cards cheat-sheet) row-name))
+  (try
+    (.indexOf (:players-cards cheat-sheet) row-name)
+       (catch NullPointerException e
+         (println "Non-existing player's card.")
+         nil)))
 
 (defn- get-col-idx
   [col-name cheat-sheet]
-  (.indexOf (:dealers-card cheat-sheet) col-name))
+ (try (.indexOf (:dealers-card cheat-sheet) col-name)
+      (catch NullPointerException e
+        (println "Non-existing dealer's card.")
+        nil)))
 
-(defn- update-sheet
+(defn update-sheet
   "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
   [cheat-sheet row col value]
-  (update-in cheat-sheet [:values row col] (constantly value)))
+  (try
+    (update-in cheat-sheet [:values row col] (constantly value))
+    (catch IndexOutOfBoundsException e
+      (println "Non-existing player's or dealer's card.")
+      nil)))
 
-(defn- get-move
+(defn get-move
   "Returns move recommendation for player based on player's and dealer's cards."
   [cheat-sheet player-card dealer-card]
-  (get-in (:values cheat-sheet) [(get-row-idx player-card cheat-sheet) (get-col-idx (value-for-ch dealer-card) cheat-sheet)]))
+  (try
+    (get-in (:values cheat-sheet)
+            [(get-row-idx player-card cheat-sheet) (get-col-idx (value-for-ch dealer-card) cheat-sheet)])
+    (catch NullPointerException e
+      (println "Non-existing player's or dealer's card.")
+      nil)))
 
-(defn- set-value!
-  "Updates the cheat-sheet matrix by setting the specified value at the given row and column."
-[row col value cheat-sheet]
-(let [row-idx (get-row-idx row cheat-sheet)]
-  (reduce (fn
-            [acc col]
-            (update-sheet acc row-idx (get-col-idx col cheat-sheet) value))
-          cheat-sheet
-          col)))
-
-(defn- set-value-more-cols!
+(defn set-value
   "Updates the cheat-sheet matrix by setting the specified value at the given row and multiple columns."
+[row col value cheat-sheet]
+  (let [row-idx (get-row-idx row cheat-sheet)
+        cols (if (vector? col) col [col])]
+    (reduce (fn
+              [acc col]
+              (update-sheet acc row-idx (get-col-idx col cheat-sheet) value))
+            cheat-sheet
+            cols)))
+
+(defn set-value!
+  "Updates the cheat-sheet matrix atom using 'set-value'"
   [cheat-sheet row cols value]
 (swap! cheat-sheet (fn
                      [ch]
-                     (set-value! row cols value ch))))
+                     (set-value row cols value ch))))
 
 (defn update-cheat-sheet-cell [all-rows all-cols cheat-sheet row cols value]
   "Updates the cheat-sheet matrix using 'set-value-more-cols!' for desired field located at the intersection
@@ -68,7 +85,7 @@
   (if (and
         (every? #(some #{%} all-rows) [row])
         (every? #(some #{%} all-cols) cols))
-    (set-value-more-cols! cheat-sheet row cols value)))
+    (set-value! cheat-sheet row cols value)))
 
 
 (update-cheat-sheet-cell row-names col-names blackjack-cheat-sheet "9" ["3" "4" "5" "6"] "DD")
