@@ -140,3 +140,23 @@
   "Returns list of both dealer and player original cards values."
   (concat (map #(get % :value) (:player-cards hand))
           [(str (:value (first (:dealer-card hand))))]))
+
+
+; za generisanje vrednosti za cheat-sheet na osnovu atoma
+(defn update-player-card-value
+  "Updates player card value."
+  [hand card-num new-v]
+  (let [key (keyword (str "card-" card-num))]
+    (assoc-in hand [key :value] new-v)))
+
+(defn update-player-card-value!
+  [hand card-num new-v]
+  (swap! hand update-player-card-value card-num new-v))
+
+(defn player-sum
+  "Calculates sum of player cards values."
+  [card]
+  (apply + (get-player-values (player-values-for-cheat-sheet card))))
+
+
+
