@@ -61,9 +61,24 @@
     (let [suit (read-line)]
       [face suit])))
 
-(defn add-new-card
+(defn add-new-player-card
   [c new-c]
   (assoc c (keyword (str "card-" (inc (count c)))) new-c))
-(defn add-new-card-atom
+(defn add-new-player-card!
   [c new-c]
-  (swap! c add-new-card {:value (nth new-c 0) :suit (nth new-c 1)}))
+  (swap! c add-new-player-card {:value (nth new-c 0) :suit (nth new-c 1)}))
+(defn add-new-current-card
+  [c new-c]
+  (update c :player-cards (fn
+                               [existing-cards]
+                               (conj existing-cards new-c))))
+
+(defn add-new-current-card!
+  [c new-c]
+  (swap! c add-new-current-card {:value (nth new-c 0) :suit (nth new-c 1)}))
+
+(defn add-both
+  [c p]
+  (let [new-c (read-new-card)]
+    (add-new-player-card! p new-c)
+    (add-new-current-card! c new-c)))
