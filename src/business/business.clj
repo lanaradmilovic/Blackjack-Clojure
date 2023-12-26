@@ -12,33 +12,55 @@
 (def initial-deck
   (for [v values s suits]
     (generate-card v s)))
+(defn read-face
+  "Reads the face value of a card from the user's keyboard input."
+  []
+  (println "Face: ")
+  (flush)
+  (read-line))
+(defn read-suit
+  "Reads the suit of a card from the user's keyboard input."
+  []
+  (println "Suit: ")
+  (flush)
+  (read-line))
+
+(defn valid-face
+  "Validates the face value entered by the user."
+  [f]
+  (let [f (if (<= (count f) 2)
+            (Integer/parseInt f)
+            f)]
+    (if (some #{f} values) f
+                           (do (println "The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
+                                 (valid-face (read-face))))))
+(defn valid-suit
+  "Validates the suit entered by the user."
+  [s]
+  (if (some #{s} suits) s
+                        (do (println "The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
+                                (valid-suit (read-suit)))))
+
 (defn read-card-from-keyboard
   "Reads player's and dealer's cards from the keyboard input.
   Prompts the user to enter the face and suit of each card."
   []
-  (loop [i 1
-         player-cards []
-         dealer-card []]
+  (loop [i 1 player-cards '() dealer-card '()]
     (if (< i 3)
       (do (println "Enter YOUR " i ". card: ")
-          (println "Face: ")
-          (flush)
-          (let [face (read-line)]
-            (println "Suit: ")
-            (flush)
-            (let [suit (read-line)]
+          (let [face (read-face)]
+            (valid-face face)
+            (let [suit (read-suit)]
+              (valid-suit suit)
               (recur (inc i) (conj player-cards (generate-card face suit)) dealer-card))))
       (if (= i 3)
         (do (println "Enter DEALER'S covered card: ")
             (flush)
-            (println "Face: ")
-            (flush)
-            (let [face (read-line)]
-              (println "Suit: ")
-              (flush)
-              (let [suit (read-line)]
-                (recur (inc i) player-cards (conj dealer-card (generate-card face suit)))))
-            )
+            (let [face (read-face)]
+              (valid-face face)
+              (let [suit (read-suit)]
+                (valid-suit suit)
+                (recur (inc i) player-cards (conj dealer-card (generate-card face suit))))))
         {:player-cards player-cards
          :dealer-card  dealer-card}))))
 
