@@ -111,9 +111,11 @@
 (defn add-both
   "Adds a new card to both the player's starting hand and the current game session cards."
   [game-session player-hand]
-  (let [new-card (read-new-card)]
+  (try (let [new-card (read-new-card)]
     (add-new-player-card! player-hand new-card)
-    (add-new-current-card! game-session new-card)))
+    (add-new-current-card! game-session new-card))
+       (catch ClassCastException e
+         (println "Expected an atom."))))
 
 (defn get-player-value
   [c n]
@@ -134,7 +136,8 @@
     (if (string? value)
       (try
         (Integer/parseInt value)
-        (catch NumberFormatException _ (throw (IllegalArgumentException. "Invalid card value."))))
+        (catch NumberFormatException e
+          (println "Invalid card value.")))
       value)))
 
 (defn convert-card-value
@@ -171,17 +174,22 @@
           [(str (:value (first (:dealer-card hand))))]))
 
 
-; za generisanje vrednosti za cheat-sheet na osnovu atoma
 (defn update-player-card-value
-  "Updates the value of a specific player card in the hand."
+  "Updates the value of a specific player card in the hand.
+  Returns nil if the card number does not exist."
   [hand card-num new-v]
   (let [key (keyword (str "card-" card-num))]
-    (assoc-in hand [key :value] new-v)))
+    (if (contains? hand key)
+      (assoc-in hand [key :value] new-v)
+      nil)))
+
 
 (defn update-player-card-value!
   "Atomically updates the value of a specific player card in the hand."
   [hand card-num new-v]
-  (swap! hand update-player-card-value card-num new-v))
+  (try (swap! hand update-player-card-value card-num new-v)
+       (catch Exception e
+         (println "Expected an atom."))))
 
 (defn player-sum
   "Calculates the sum of the values of player cards."
@@ -269,7 +277,7 @@
       (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has 2 cards, and current sum is less than 9.
       (> current-player-sum 17) (cs/get-move cheat-sheet "17" dealer-card) ; Player has 2 cards, and current sum is greater than 17.
 
-      :else "not covered in cheat sheet"))) ; Default case, not covered by the cheat sheet.
+      :else "Not covered in cheat sheet."))) ; Default case, not covered by the cheat sheet.
 
 
 
