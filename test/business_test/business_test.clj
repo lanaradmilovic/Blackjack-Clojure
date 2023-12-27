@@ -1,6 +1,7 @@
 (ns business-test.business-test
   (:require [midje.sweet :refer :all]
-            [business.business :refer :all :as b]))
+            [business.business :refer :all :as b]
+            [cheat-sheet.cheat-sheet :refer :all :as sheet]))
 (fact "Testing generate-card function"
       (let [card (generate-card "10" "heart")]
         (fact "Generated card should have the correct value and suit"
@@ -126,32 +127,113 @@
             two-ace-hand (atom {:card-1 {:value "ace" :suit "heart"}
                                 :card-2 {:value "ace" :suit "diamond"}})
             ace-value-eleven (atom {:card-1 {:value "ace" :suit "heart"}
-                                       :card-2 {:value "king" :suit "diamond"}})
+                                    :card-2 {:value "king" :suit "diamond"}})
             ace-value-one (atom {:card-1 {:value "ace" :suit "heart"}
-                                     :card-2 {:value "king" :suit "diamond"}
-                                     :card-3 {:value "ace" :suit "spade"}})]
+                                 :card-2 {:value "king" :suit "diamond"}
+                                 :card-3 {:value "ace" :suit "spade"}})]
 
         (fact "No adjustment is made for a hand without 'ace' cards."
-              (adjust-ace-value! no-ace-hand) => no-ace-hand)
+              (adjust-ace-value! no-ace-hand) => (deref no-ace-hand))
 
         (fact "No adjustment is made when the sum is less or equals to 21."
-              (adjust-ace-value! no-ace-hand) => no-ace-hand
-              (adjust-ace-value! ace-value-eleven) => ace-value-eleven)
+              (adjust-ace-value! no-ace-hand) => (deref no-ace-hand)
+              (adjust-ace-value! ace-value-eleven) => (deref ace-value-eleven))
 
         (fact "Adjust 'ace' value from 11 to 1 when the sum is over 21."
               (adjust-ace-value! ace-value-one) => {:card-1 {:value 1 :suit "heart"}
-                                                        :card-2 {:value "king" :suit "diamond"}
-                                                        :card-3 {:value 1 :suit "spade"}}
-              (deref (adjust-ace-value! two-ace-hand)) => {:card-1 {:value "ace" :suit "heart"}
-                                                           :card-2 {:value 1 :suit "diamond"}})))
+                                                    :card-2 {:value "king" :suit "diamond"}
+                                                    :card-3 {:value 1 :suit "spade"}}
+              (adjust-ace-value! two-ace-hand) => {:card-1 {:value "ace" :suit "heart"}
+                                                   :card-2 {:value 1 :suit "diamond"}})))
 
 
+(fact "Testing between when number is outside the range."
+      (b/between? 5 10 15) => falsey)
 
+(fact "Testing ace-to-A function"
+      (ace-to-A "ace") => "A"
+      (ace-to-A "king") => "king"
+      (ace-to-A "invalid") => "invalid"
+      (ace-to-A nil) => falsey)
 
+(fact "Testing 'recommend-move' function"
+      (let [cheat-sheet @sheet/blackjack-cheat-sheet
+            current-cards {:player-cards (list {:value "ace" :suit "heart"} {:value "king" :suit "heart"})
+                           :dealer-card  (list {:value "king" :suit "heart"})}
+            player-hand {:card-1 {:value "ace" :suit "heart"}
+                         :card-2 {:value "king" :suit "heart"}}]
 
+        (fact "Player has a Blackjack"
+              (b/recommend-move cheat-sheet current-cards player-hand) => "Blackjack!"))
 
+      (let [cheat-sheet @sheet/blackjack-cheat-sheet
+            current-cards {:player-cards (list {:value "3" :suit "heart"} {:value "2" :suit "heart"} {:value "3" :suit "heart"})
+                           :dealer-card  (list {:value "king" :suit "heart"})}
+            player-hand {:card-1 {:value "3" :suit "heart"}
+                         :card-2 {:value "2" :suit "heart"}
+                         :card-3 {:value "3" :suit "heart"}}]
+        (fact "Player has more than 2 cards and current sum is less than 9"
+              (b/recommend-move cheat-sheet current-cards player-hand) => "H"))
 
+      (fact "Player has 2 cards, and their sum is between 8 and 18, and both cards are different, and no Ace in the hand"
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "5" :suit "heart"} {:value "4" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "5" :suit "heart"}
+                               :card-2 {:value "4" :suit "heart"}}]
 
+              (b/recommend-move cheat-sheet current-cards player-hand) => "H"))
+
+      (fact "Player has 2 Aces."
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "ace" :suit "heart"} {:value "ace" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "ace" :suit "heart"}
+                               :card-2 {:value "ace" :suit "heart"}}]
+
+              (b/recommend-move cheat-sheet current-cards player-hand) => "P"))
+
+      (fact "Player has 1 Ace."
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "ace" :suit "heart"} {:value "4" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "ace" :suit "heart"}
+                               :card-2 {:value "4" :suit "heart"}}]
+
+              (b/recommend-move cheat-sheet current-cards player-hand) => "H"))
+
+      (fact "Player has 2 cards of the same value (not Ace)."
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "4" :suit "heart"} {:value "4" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "4" :suit "heart"}
+                               :card-2 {:value "4" :suit "heart"}}]
+
+              (b/recommend-move cheat-sheet current-cards player-hand) => "H"))
+
+      (fact "Player has 2 cards, and current sum is greater than 17."
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "10" :suit "heart"}
+                               :card-2 {:value "9" :suit "heart"}}]
+
+              (b/recommend-move cheat-sheet current-cards player-hand) => "S"))
+
+      (fact "Empty hand. (Not covered in the cheat sheet)"
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {}
+                  player-hand {}]
+              (b/recommend-move cheat-sheet current-cards player-hand) => falsey))
+
+      (fact "Player has 3 cards, and current sum is greater than 21. (Not covered in the cheat sheet)"
+            (let [cheat-sheet @sheet/blackjack-cheat-sheet
+                  current-cards {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"} {:value "5" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                  player-hand {:card-1 {:value "10" :suit "heart"}
+                               :card-2 {:value "9" :suit "heart"}
+                               :card-3 {:value "5" :suit "heart"}}]
+              (b/recommend-move cheat-sheet current-cards player-hand) => falsey)))
 
 
 
