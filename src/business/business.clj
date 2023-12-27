@@ -33,13 +33,13 @@
             f)]
     (if (some #{f} values) f
                            (do (println "The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
-                                 (valid-face (read-face))))))
+                               (valid-face (read-face))))))
 (defn valid-suit
   "Validates the suit entered by the user."
   [s]
   (if (some #{s} suits) s
                         (do (println "The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
-                                (valid-suit (read-suit)))))
+                            (valid-suit (read-suit)))))
 
 (defn read-card-from-keyboard
   "Reads player's and dealer's cards from the keyboard input.
@@ -112,8 +112,8 @@
   "Adds a new card to both the player's starting hand and the current game session cards."
   [game-session player-hand]
   (try (let [new-card (read-new-card)]
-    (add-new-player-card! player-hand new-card)
-    (add-new-current-card! game-session new-card))
+         (add-new-player-card! player-hand new-card)
+         (add-new-current-card! game-session new-card))
        (catch ClassCastException e
          (println "Expected an atom."))))
 
@@ -221,20 +221,21 @@
         (recur (inc i) n (conj s i))
         (recur (inc i) n s)))))
 
-(defn adjust-ace-value
-  "Adjusts the value of an 'ace' card based on the player's card sum.
+(defn adjust-ace-value!
+  "Atomically adjusts the value of an 'ace' card based on the player's card sum.
   If the current 'ace' value is 11 and the player's card sum is over 21, the 'ace' value is changed to 1."
   [card]
-  (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet card)))
-           (> (player-sum card) 21))
-    (update-player-card-value card (first (get-ace-position card)) 1)
-    card))
-
-
-(defn adjust-ace-value!
-  "Atomically adjusts the value of an 'ace' card in the player's hand by invoking 'adjust-ace-value'."
-  [card]
-  (swap! card adjust-ace-value))
+  (cond
+    (= 0 (count (get-ace-position @card))) card            ; No 'ace' cards.
+    (= (count (get-ace-position @card)) 1) (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet @card))) ; One 'ace' card.
+                                                    (> (player-sum @card) 21))
+                                             (update-player-card-value! card (first (get-ace-position @card)) 1)
+                                             card)
+    (> (count (get-ace-position @card)) 1) (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet @card))) ; More than one 'ace' card.
+                                                    (> (player-sum @card) 21))
+                                             (do (update-player-card-value! card (first (get-ace-position @card)) 1)
+                                                 (adjust-ace-value! card))
+                                             card)))
 
 (defn between?
   "Checks if a number is between two given values."
@@ -249,12 +250,12 @@
 (defn recommend-move
   "Recommends a move based on the current game state, cheat sheet, and player's hand."
   [cheat-sheet current-cards player-hand]
-  (let [current-player-sum (player-sum (adjust-ace-value player-hand))
+  (let [current-player-sum (player-sum (adjust-ace-value! (atom player-hand)))
         dealer-card (ace-to-A (get-dealer-value current-cards))
         player-card (str current-player-sum)]
 
     (cond
-      (= current-player-sum 21) (println "Black Jack!") ; Player has a Blackjack.
+      (= current-player-sum 21) (println "Black Jack!")     ; Player has a Blackjack.
       (> (count player-hand) 2) (cond
                                   (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has more than 2 cards and current sum is less than 9.
                                   (between? current-player-sum 8 18) (cs/get-move cheat-sheet player-card dealer-card) ; Player has more than 2 cards and current sum is between 8 and 18.
@@ -268,7 +269,7 @@
       (= 1 (count (get-ace-position player-hand)))
       (let [no-ace-card-num (first (get-no-ace-position player-hand))
             player-card (str "A" (get-player-value player-hand no-ace-card-num))]
-        (cs/get-move cheat-sheet player-card dealer-card)) ; Player has 1 Ace.
+        (cs/get-move cheat-sheet player-card dealer-card))  ; Player has 1 Ace.
       (and (= (get-player-value player-hand 1)
               (get-player-value player-hand 2))
            (not= (get-player-value player-hand 1)
@@ -277,7 +278,7 @@
       (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has 2 cards, and current sum is less than 9.
       (> current-player-sum 17) (cs/get-move cheat-sheet "17" dealer-card) ; Player has 2 cards, and current sum is greater than 17.
 
-      :else "Not covered in cheat sheet."))) ; Default case, not covered by the cheat sheet.
+      :else "Not covered in cheat sheet.")))                ; Default case, not covered by the cheat sheet.
 
 
 
