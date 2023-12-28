@@ -38,12 +38,43 @@
                      l2)))))
 (defn count-probability-hit
   "Scenario 1: Recommended move: 'H'
-  Calculates the probability of not busting based on the count of fit-values (counter) and
+  Calculates the probability of player not busting based on the count of fit-values (counter) and
   the total count (divisor). Returns the result as a formatted percentage."
   [counter divisor card fit-value]
-  (str (format "%.2f" (* 100 (float (/ (decrement-counter-on-match counter card fit-value) divisor)))) "% of not busting."))
+  (str (format "%.2f" (* 100 (float (/ (decrement-counter-on-match counter card fit-value)
+                                       divisor)))) "% of not busting."))
 
+(defn value
+  "Converts a numeric card value to its corresponding string representation."
+  [val]
+  (case val
+    11 "ace"
+    12 "jack"
+    13 "queen"
+    14 "king"
+    val))
 
+(defn subvector
+  "Generates a subvector from an input list based on the specified start and stop values."
+  [input-list a b]
+  (let [start-element (value a)
+        stop-element (value b)
+        start-index (.indexOf input-list start-element)
+        stop-index (inc (.indexOf input-list stop-element))]
+    (subvec (vec input-list) start-index stop-index)))
+
+(defn count-probability-s
+  "Scenario 2: Recommended move: 'S'
+  Calculates the probability of the dealer winning when the player stands."
+  [counter divisor current-cards fit-value]
+  (float (/ (decrement-counter-on-match counter current-cards fit-value)
+            divisor)))
+
+(defn count-probability-stand
+  "Calculates the probability of the player winning when the player stands.
+  Returns the result as a formatted percentage."
+  [counter divisor current-cards fit-value]
+  (str (format "%.2f" (* 100 (float (- 1 (count-probability-s counter divisor current-cards fit-value))))) "% of winning."))
 
 
 
