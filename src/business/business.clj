@@ -283,4 +283,22 @@
 
 
 
+; Scenario 1: Recommended move 'H'
+; Counting probability
+(def fit-value-hit (- 21 (player-sum @player-starting-hand)))
+(def suit-count (count suits))
+(def num-cards-in-deck (count initial-deck))
+(def num-passed-cards (+ (count @player-starting-hand) 1))
+(def counter (atom (* fit-value-hit suit-count)))
+(def divisor (- num-cards-in-deck num-passed-cards))
+
+(def start-value
+  "Determines the starting value for generating a sequence of values for the dealer to hit.
+   It is calculated as 17 (the minimum sum for the dealer to stand) minus the dealer's card value."
+  (- 17 (get-dealer-value @current-cards)))
+(def end-value
+  "Determines the ending value for generating a sequence of values for the dealer to hit.
+   It is calculated as 21 (the maximum sum before going bust) minus the dealer's card value."
+  (- 21 (get-dealer-value @current-cards)))
+
 
