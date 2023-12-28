@@ -226,16 +226,16 @@
   If the current 'ace' value is 11 and the player's card sum is over 21, the 'ace' value is changed to 1."
   [card]
   (cond
-    (= 0 (count (get-ace-position @card))) card            ; No 'ace' cards.
+    (= 0 (count (get-ace-position @card))) @card            ; No 'ace' cards.
     (= (count (get-ace-position @card)) 1) (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet @card))) ; One 'ace' card.
                                                     (> (player-sum @card) 21))
                                              (update-player-card-value! card (first (get-ace-position @card)) 1)
-                                             card)
+                                             @card)
     (> (count (get-ace-position @card)) 1) (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet @card))) ; More than one 'ace' card.
                                                     (> (player-sum @card) 21))
                                              (do (update-player-card-value! card (first (get-ace-position @card)) 1)
                                                  (adjust-ace-value! card))
-                                             card)))
+                                             @card)))
 
 (defn between?
   "Checks if a number is between two given values."
@@ -255,28 +255,29 @@
         player-card (str current-player-sum)]
 
     (cond
-      (= current-player-sum 21) (println "Black Jack!")     ; Player has a Blackjack.
+      (= current-player-sum 21) "Blackjack!"                ; Player has a Blackjack.
       (> (count player-hand) 2) (cond
                                   (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has more than 2 cards and current sum is less than 9.
                                   (between? current-player-sum 8 18) (cs/get-move cheat-sheet player-card dealer-card) ; Player has more than 2 cards and current sum is between 8 and 18.
-                                  (> current-player-sum 17) (cs/get-move cheat-sheet "17" dealer-card)) ; Player has more than 2 cards and current sum is greater than 17.
+                                  (and (> current-player-sum 17)
+                                       (< current-player-sum 22)) (cs/get-move cheat-sheet "17" dealer-card)) ; Player has more than 2 cards, and current sum is greater than 17 and less than 22.
       (and (between? current-player-sum 8 18)
            (not= (get-player-value player-hand 1)
                  (get-player-value player-hand 2))
            (= (count player-hand)
               (count (get-no-ace-position player-hand)))) (cs/get-move cheat-sheet player-card dealer-card) ; Player has 2 cards, and their sum is between 8 and 18, and both cards are different, and no Ace in the hand.
       (= 2 (count (get-ace-position player-hand))) (cs/get-move cheat-sheet "AA" dealer-card) ; Player has 2 Aces.
-      (= 1 (count (get-ace-position player-hand)))
-      (let [no-ace-card-num (first (get-no-ace-position player-hand))
-            player-card (str "A" (get-player-value player-hand no-ace-card-num))]
-        (cs/get-move cheat-sheet player-card dealer-card))  ; Player has 1 Ace.
+      (= 1 (count (get-ace-position player-hand))) (let [no-ace-card-num (first (get-no-ace-position player-hand))
+                                                         player-card (str "A" (get-player-value player-hand no-ace-card-num))]
+                                                     (cs/get-move cheat-sheet player-card dealer-card)) ; Player has 1 Ace.
       (and (= (get-player-value player-hand 1)
               (get-player-value player-hand 2))
            (not= (get-player-value player-hand 1)
                  "ace"))
       (let [player-card (str (get-player-value player-hand 1) (get-player-value player-hand 2))] (cs/get-move cheat-sheet player-card dealer-card)) ; Player has 2 cards of the same value (not Ace).
       (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has 2 cards, and current sum is less than 9.
-      (> current-player-sum 17) (cs/get-move cheat-sheet "17" dealer-card) ; Player has 2 cards, and current sum is greater than 17.
+      (and (> current-player-sum 17)
+           (< current-player-sum 22)) (cs/get-move cheat-sheet "17" dealer-card) ; Player has 2 cards, and current sum is greater than 17 and less than 22.
 
       :else "Not covered in cheat sheet.")))                ; Default case, not covered by the cheat sheet.
 
