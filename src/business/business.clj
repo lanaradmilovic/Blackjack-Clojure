@@ -1,5 +1,6 @@
 (ns business.business
-  (:require [cheat-sheet.cheat-sheet :refer :all :as cs]))
+  (:require [cheat-sheet.cheat-sheet :refer :all :as cs]
+            [probability.probability :refer :all :as p]))
 
 (def suits ["club" "heart" "spade" "diamond"])
 (def numbers (range 1 11))
@@ -32,14 +33,16 @@
             (Integer/parseInt f)
             f)]
     (if (some #{f} values) f
-                           (do (println "The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
-                               (valid-face (read-face))))))
+                           (do
+                             (println "The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
+                             (valid-face (read-face))))))
 (defn valid-suit
   "Validates the suit entered by the user."
   [s]
   (if (some #{s} suits) s
-                        (do (println "The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
-                            (valid-suit (read-suit)))))
+                        (do
+                          (println "The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
+                          (valid-suit (read-suit)))))
 
 (defn read-card-from-keyboard
   "Reads player's and dealer's cards from the keyboard input.
@@ -47,20 +50,22 @@
   []
   (loop [i 1 player-cards '() dealer-card '()]
     (if (< i 3)
-      (do (println "Enter YOUR " i ". card: ")
+      (do
+        (println "Enter YOUR " i ". card: ")
+        (let [face (read-face)]
+          (valid-face face)
+          (let [suit (read-suit)]
+            (valid-suit suit)
+            (recur (inc i) (conj player-cards (generate-card face suit)) dealer-card))))
+      (if (= i 3)
+        (do
+          (println "Enter DEALER'S covered card: ")
+          (flush)
           (let [face (read-face)]
             (valid-face face)
             (let [suit (read-suit)]
               (valid-suit suit)
-              (recur (inc i) (conj player-cards (generate-card face suit)) dealer-card))))
-      (if (= i 3)
-        (do (println "Enter DEALER'S covered card: ")
-            (flush)
-            (let [face (read-face)]
-              (valid-face face)
-              (let [suit (read-suit)]
-                (valid-suit suit)
-                (recur (inc i) player-cards (conj dealer-card (generate-card face suit))))))
+              (recur (inc i) player-cards (conj dealer-card (generate-card face suit))))))
         {:player-cards player-cards
          :dealer-card  dealer-card}))))
 
@@ -108,7 +113,7 @@
   [game-session new-card]
   (swap! game-session add-new-current-card new-card))
 
-(defn add-both
+(defn add-both!
   "Adds a new card to both the player's starting hand and the current game session cards."
   [game-session player-hand]
   (try (let [new-card (read-new-card)]
@@ -167,12 +172,6 @@
     (if (> i n)
       values
       (recur (inc i) n (conj values (get-player-value hand i))))))
-(defn get-all-values
-  [hand]
-  "Returns list of both dealer and player original cards values."
-  (concat (map #(get % :value) (:player-cards hand))
-          [(str (:value (first (:dealer-card hand))))]))
-
 
 (defn update-player-card-value
   "Updates the value of a specific player card in the hand.
@@ -233,8 +232,9 @@
                                              @card)
     (> (count (get-ace-position @card)) 1) (if (and (some #(= % 11) (get-player-values (player-values-for-cheat-sheet @card))) ; More than one 'ace' card.
                                                     (> (player-sum @card) 21))
-                                             (do (update-player-card-value! card (first (get-ace-position @card)) 1)
-                                                 (adjust-ace-value! card))
+                                             (do
+                                               (update-player-card-value! card (first (get-ace-position @card)) 1)
+                                               (adjust-ace-value! card))
                                              @card)))
 
 (defn between?
@@ -282,23 +282,75 @@
       :else "Not covered in cheat sheet.")))                ; Default case, not covered by the cheat sheet.
 
 
-
-; Scenario 1: Recommended move 'H'
 ; Counting probability
-(def fit-value-hit (- 21 (player-sum @player-starting-hand)))
+(def fit-value-hit (- 21 (player-sum (adjust-ace-value! (atom @player-starting-hand)))))
 (def suit-count (count suits))
 (def num-cards-in-deck (count initial-deck))
 (def num-passed-cards (+ (count @player-starting-hand) 1))
 (def counter (atom (* fit-value-hit suit-count)))
 (def divisor (- num-cards-in-deck num-passed-cards))
 
+; If the dealer's revealed card is less than 7, the unrevealed card can take on any value without the risk of the dealer going bust.
+; (start-value is 1, end-value is 14, meaning: all values can be considered)
 (def start-value
   "Determines the starting value for generating a sequence of values for the dealer to hit.
    It is calculated as 17 (the minimum sum for the dealer to stand) minus the dealer's card value."
-  (- 17 (get-dealer-value @current-cards)))
+  (if (<= (:value (dealer-values-for-cheat-sheet @current-cards)) 6) 1
+                                                                     (- 17 (:value (dealer-values-for-cheat-sheet @current-cards)))))
+
 (def end-value
   "Determines the ending value for generating a sequence of values for the dealer to hit.
    It is calculated as 21 (the maximum sum before going bust) minus the dealer's card value."
-  (- 21 (get-dealer-value @current-cards)))
+  (if (<= (:value (dealer-values-for-cheat-sheet @current-cards)) 6) 14
+                                                                     (- 21 (:value (dealer-values-for-cheat-sheet @current-cards)))))
+(def fit-value-stand (count (p/subvector values (value start-value) (value end-value))))
+
+(defn odds
+  "Calculates the odds of winning based on the recommended move in a Blackjack game."
+  [current-cards player-cards cheat-sheet]
+  (let [move (recommend-move cheat-sheet current-cards player-cards)]
+    (cond
+      (or (= move "H") (= move "DD") (= move "P"))          ; Odds are calculated the same way for recommended moves 'H', 'P' and 'DD'.
+      (p/count-probability-hit counter divisor current-cards fit-value-hit)
+      (= move "S")
+      (p/count-probability-stand counter divisor current-cards fit-value-stand)
+      :else (println "Unknown move!"))))
+
+(defn play
+  [current-cards player-cards cheat-sheet]
+  (let [move (recommend-move @cheat-sheet @current-cards @player-cards)] ; Move recommendation according to Blackjack cheat sheet.
+    (println "Play: " move)
+    (cond
+      (= move "S")                                          ; Stay
+      (if (> (player-sum (adjust-ace-value! player-cards)) 21)
+        (println "Bust: 100%")                              ; If sum of player's hand is greater than 21, player goes bust.
+        (if (> (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 7, calculating the odds becomes impossible, as the unrevealed card can take on any value without the risk of the dealer going bust.
+          (println (odds @current-cards @player-cards @cheat-sheet))
+          (println "Can't calculate odds!")))
+      (= move "H")                                          ; Hit
+      (do
+        (println (odds @current-cards @player-cards @cheat-sheet))
+        (add-both! current-cards player-cards)
+        (play current-cards player-cards cheat-sheet))
+      (= move "DD")                                         ; Double down
+      (do
+        (add-both! current-cards player-cards)              ; In case of DD, player can hit only one more card.
+        (println (odds @current-cards @player-cards @cheat-sheet)))
+      (= move "P")                                          ; Split
+      (let [player-1 (atom {:card-1 (:card-1 @player-cards)}) ; Extract the first card for the first split hand.
+            player-2 (atom {:card-1 (:card-2 @player-cards)}) ; Extract the second card for the second split hand.
+            current-1 (atom {:player-cards (:card-1 @player-1) :dealer-card (:dealer-card @current-cards)})
+            current-2 (atom {:player-cards (:card-1 @player-2) :dealer-card (:dealer-card @current-cards)})]
+        (do
+          (println (odds @current-1 @player-1 @cheat-sheet))
+          (add-both! current-1 player-1)
+          (play current-1 player-1 cheat-sheet)
+          (println @player-1)
+          (println (odds @current-2 @player-2 @cheat-sheet))
+          (add-both! current-2 player-2)
+          (play current-2 player-2 cheat-sheet)
+          (println @player-2)))
+      :else
+      (println "End of game!"))))
 
 
