@@ -13,7 +13,7 @@
       l
       (recur (inc i) num (cons i l)))))
 
-(defn get-all-values
+(defn get-all-val
   [hand]
   "Returns list of both dealer and player original cards values."
   (concat (map #(get % :value) (:player-cards hand))
@@ -24,7 +24,7 @@
   a generated list and the values obtained from a card. The list of matching elements
   is determined by the specified fit-value."
   [counter card fit-value]
-  (let [l2 (get-all-values card)
+  (let [l2 (get-all-val card)
         l1 (generate-list fit-value)]
     (swap! counter
            (fn
