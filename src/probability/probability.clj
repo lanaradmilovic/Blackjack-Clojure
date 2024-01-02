@@ -8,14 +8,15 @@
 (defn generate-list
   "Generates a list of integers starting from 1 up to the specified number `n` (inclusive)."
   [n]
-  (loop [i 1 num n l '()]
-    (if (= (+ n 1) i)
-      l
-      (recur (inc i) num (cons i l)))))
+  (if (<= n 0) '()
+               (loop [i 1 num n l '()]
+                 (if (= (+ n 1) i)
+                   l
+                   (recur (inc i) num (cons i l))))))
 
 (defn get-all-val
+  "Returns list of both dealer and player original (String) cards values."
   [hand]
-  "Returns list of both dealer and player original cards values."
   (concat (map #(get % :value) (:player-cards hand))
           [(str (:value (first (:dealer-card hand))))]))
 
@@ -24,25 +25,29 @@
   a generated list and the values obtained from a card. The list of matching elements
   is determined by the specified fit-value."
   [counter card fit-value]
-  (let [l2 (get-all-val card)
-        l1 (generate-list fit-value)]
-    (swap! counter
-           (fn
-             [c]
-             (reduce (fn
-                       [acc elem]
-                       (if (contain-element? l1 elem)
-                         (dec acc)
-                         acc))
-                     c
-                     l2)))))
+  (if (= (deref counter) 0) counter
+                            (let [l2 (get-all-val card)
+                                  l1 (generate-list fit-value)]
+                              (swap! counter
+                                     (fn
+                                       [c]
+                                       (reduce (fn
+                                                 [acc elem]
+                                                 (if (contain-element? l1 elem)
+                                                   (dec acc)
+                                                   acc))
+                                               c
+                                               l2))))))
 (defn count-probability-hit
   "Scenario 1: Recommended move: 'H'
   Calculates the probability of player not busting based on the count of fit-values (counter) and
   the total count (divisor). Returns the result as a formatted percentage."
   [counter divisor card fit-value]
-  (str (format "%.2f" (* 100 (float (/ (decrement-counter-on-match counter card fit-value)
-                                       divisor)))) "% of not busting."))
+  (try
+    (str (format "%.2f" (* 100 (float (/ (decrement-counter-on-match counter card fit-value)
+                                         divisor)))) "% of not busting.")
+    (catch ArithmeticException e
+      (println "Divide by zero exception."))))
 
 (defn value
   "Converts a numeric card value to its corresponding string representation."
@@ -57,21 +62,25 @@
 (defn subvector
   "Generates a subvector from an input list based on the specified start and stop values."
   [input-list a b]
-  (let [start-element (value a)
-        stop-element (value b)
-        start-index (.indexOf input-list start-element)
-        stop-index (inc (.indexOf input-list stop-element))]
-    (subvec (vec input-list) start-index stop-index)))
+  (try (let [start-element (value a)
+             stop-element (value b)
+             start-index (.indexOf input-list start-element)
+             stop-index (inc (.indexOf input-list stop-element))]
+         (subvec (vec input-list) start-index stop-index))
+       (catch IndexOutOfBoundsException e
+         (println "Index out of bounds exception."))))
 
 (defn count-probability-s
   "Scenario 2: Recommended move: 'S'
   Calculates the probability of the dealer winning when the player stands."
   [counter divisor current-cards fit-value]
-  (float (/ (decrement-counter-on-match counter current-cards fit-value)
-            divisor)))
+  (try (float (/ (decrement-counter-on-match counter current-cards fit-value)
+                 divisor))
+       (catch ArithmeticException e
+         (println "Divide by zero exception."))))
 
 (defn count-probability-stand
-  "Calculates the probability of the player winning when the player stands.
+  "Calculates the probability of the player winning (subtract from 1 odds of dealer winning) when the player stands.
   Returns the result as a formatted percentage."
   [counter divisor current-cards fit-value]
   (str (format "%.2f" (* 100 (float (- 1 (count-probability-s counter divisor current-cards fit-value))))) "% of winning."))
