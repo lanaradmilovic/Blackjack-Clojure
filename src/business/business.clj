@@ -91,7 +91,7 @@
     (println "Suit: ")
     (flush)
     (let [suit (read-line)]
-      [face suit])))
+      {:value face :suit suit})))
 
 (defn add-new-player-card
   "Adds a new card to the player's starting hand."
@@ -321,7 +321,7 @@
   (let [move (recommend-move @cheat-sheet @current-cards @player-cards)] ; Move recommendation according to Blackjack cheat sheet.
     (println "Play: " move)
     (cond
-      (= move "S")                                          ; Stay
+      (= move "S")                                          ; Stand
       (if (> (player-sum (adjust-ace-value! player-cards)) 21)
         (println "Bust: 100%")                              ; If sum of player's hand is greater than 21, player goes bust.
         (if (> (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 7, calculating the odds becomes impossible, as the unrevealed card can take on any value without the risk of the dealer going bust.
@@ -342,14 +342,17 @@
             current-1 (atom {:player-cards (:card-1 @player-1) :dealer-card (:dealer-card @current-cards)})
             current-2 (atom {:player-cards (:card-1 @player-2) :dealer-card (:dealer-card @current-cards)})]
         (do
+          (println "! First card ! Play:  H")
           (println (odds @current-1 @player-1 @cheat-sheet))
           (add-both! current-1 player-1)
           (play current-1 player-1 cheat-sheet)
-          (println @player-1)
+          ;(println @player-1)
+          (println "! Second card ! Play:  H")
           (println (odds @current-2 @player-2 @cheat-sheet))
           (add-both! current-2 player-2)
           (play current-2 player-2 cheat-sheet)
-          (println @player-2)))
+          ; (println @player-2)
+          ))
       :else
       (println "End of game!"))))
 
