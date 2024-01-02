@@ -74,7 +74,7 @@
       (let [player-cards ({:card-1 {:value "10" :suit "heart"}}
                           {:card-2 {:value "10" :suit "heart"}})
             current-cards {:value "7" :suit "club"}]
-        (b/add-both player-cards current-cards) => falsey))
+        (b/add-both! player-cards current-cards) => falsey))
 (fact "Tests edge cases for 'card-value' function."
       (card-value "jack") => 10
       (card-value "unknown") => falsey)
@@ -235,9 +235,27 @@
                                :card-3 {:value "5" :suit "heart"}}]
               (b/recommend-move cheat-sheet current-cards player-hand) => falsey)))
 
+(fact "Testing 'play' function"
+      (fact "Testing play function - Bust"
+            (let [cheat-sheet sheet/blackjack-cheat-sheet
+                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"} {:value "3" :suit "heart"})
+                                       :dealer-card  (list {:value "king" :suit "heart"})})
+                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
+                                      :card-2 {:value "9" :suit "heart"}
+                                      :card-3 {:value "3" :suit "heart"}})
+                  expected-result "End of game!"]
+              (play current-cards player-cards cheat-sheet)
+              => expected-result))
 
-
-
+      (fact "Testing play function - Can't calculate odds"
+            (let [cheat-sheet sheet/blackjack-cheat-sheet
+                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"})
+                                       :dealer-card  (list {:value "5" :suit "heart"})})
+                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
+                                      :card-2 {:value "9" :suit "heart"}})
+                  expected-result "Can't calculate odds!"]
+              (play current-cards player-cards cheat-sheet)
+              => expected-result)))
 
 
 
