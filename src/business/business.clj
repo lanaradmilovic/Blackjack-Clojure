@@ -314,7 +314,7 @@
       (p/count-probability-hit counter divisor current-cards fit-value-hit)
       (= move "S")
       (p/count-probability-stand counter divisor current-cards fit-value-stand)
-      :else (println "Unknown move!"))))
+      :else "Unknown move!")))
 
 (defn play
   [current-cards player-cards cheat-sheet]
@@ -323,10 +323,10 @@
     (cond
       (= move "S")                                          ; Stand
       (if (> (player-sum (adjust-ace-value! player-cards)) 21)
-        (println "Bust: 100%")                              ; If sum of player's hand is greater than 21, player goes bust.
+        "Bust: 100%"                              ; If sum of player's hand is greater than 21, player goes bust.
         (if (> (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 7, calculating the odds becomes impossible, as the unrevealed card can take on any value without the risk of the dealer going bust.
           (println (odds @current-cards @player-cards @cheat-sheet))
-          (println "Can't calculate odds!")))
+          "Can't calculate odds!"))
       (= move "H")                                          ; Hit
       (do
         (println (odds @current-cards @player-cards @cheat-sheet))
@@ -354,6 +354,6 @@
           ; (println @player-2)
           ))
       :else
-      (println "End of game!"))))
+      "End of game!")))
 
 
