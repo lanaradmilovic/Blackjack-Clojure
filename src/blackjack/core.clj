@@ -1,7 +1,8 @@
 (ns blackjack.core
-  (:gen-class))
+  (:gen-class)
+  (:require [business.business :refer :all :as b]))
 
 (defn -main
-  "I don't do a whole lot ... yet."
-  [& args]
-  (println "Hello, World!"))
+  "Runs the game."
+  []
+  (b/start-game))
