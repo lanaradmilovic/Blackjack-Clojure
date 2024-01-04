@@ -299,13 +299,14 @@
                    l
                    (recur (inc i) num (cons i l))))))
 
-(defn get-all-val
-  "Returns list of both dealer and player original (String) cards values."
+(defn get-all-values
+  "Returns list of both dealer and player cards values (Integer) by invoking 'card-value'."
   [hand]
-  (concat (map #(get % :value) (:player-cards hand))
-          [(str (:value (first (:dealer-card hand))))]))
-
-(def suit-count (count suits))                              ; Total number of suits.
+  (try (concat (map #(card-value (get % :value)) (:player-cards hand))
+          [(card-value (:value (first (:dealer-card hand))))])
+       (catch Exception e
+         (println (.getMessage e)))))
+(def suit-count (count suits))
 (def num-cards-in-deck (count initial-deck))                ; Total number of cards in deck.
 (defn num-passed-cards
   "Calculates number of player's passed cards in current game session including one dealer's revealed card."
@@ -330,7 +331,7 @@
   Decrements the counter values for cards no longer available due to being drawn by the player or dealer."
   [player-card current-cards]
   (let [counter (* (fit-value-hit player-card) suit-count)
-        l2 (get-all-val current-cards)
+        l2 (get-all-values current-cards)
         l1 (generate-list (fit-value-hit player-card))]
     (reduce (fn
               [acc elem]
@@ -338,8 +339,7 @@
                 (dec acc)
                 acc))
             counter
-            l2)
-    counter))
+            l2)))
 (defn count-probability-hit
   "Scenario 1: Recommended move: 'H'
   Calculates the probability of player not busting based on the count of fit-values (counter) and
@@ -398,7 +398,7 @@
   Decrements the counter values for cards no longer available due to being drawn by the player or dealer."
   [current-cards]
   (let [counter (* (fit-value-stand current-cards) suit-count)
-        l2 (get-all-val current-cards)
+        l2 (get-all-values current-cards)
         l1 (generate-list (fit-value-stand current-cards))]
     (reduce (fn
               [acc elem]
@@ -406,8 +406,7 @@
                 (dec acc)
                 acc))
             counter
-            l2)
-    counter))
+            l2)))
 
 (defn count-probability-s
   "Scenario 2: Recommended move: 'S'
