@@ -235,28 +235,6 @@
                                :card-3 {:value "5" :suit "heart"}}]
               (b/recommend-move cheat-sheet current-cards player-hand) => falsey)))
 
-(fact "Testing 'play' function"
-      (fact "Testing play function - Bust"
-            (let [cheat-sheet sheet/blackjack-cheat-sheet
-                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"} {:value "3" :suit "heart"})
-                                       :dealer-card  (list {:value "king" :suit "heart"})})
-                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
-                                      :card-2 {:value "9" :suit "heart"}
-                                      :card-3 {:value "3" :suit "heart"}})
-                  expected-result "End of game!"]
-              (play current-cards player-cards cheat-sheet)
-              => expected-result))
-
-      (fact "Testing play function - Can't calculate odds"
-            (let [cheat-sheet sheet/blackjack-cheat-sheet
-                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"})
-                                       :dealer-card  (list {:value "5" :suit "heart"})})
-                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
-                                      :card-2 {:value "9" :suit "heart"}})
-                  expected-result "Can't calculate odds!"]
-              (play current-cards player-cards cheat-sheet)
-              => expected-result)))
-
 (fact "Testing contain-element? function"
       (fact "Testing contain-element? function with existing element"
             (b/contain-element? [1 2 3] 2) => true)
@@ -286,17 +264,116 @@
       (fact "Testing generate-list function with large n"
             (b/generate-list 1000) => (reverse (take 1000 (iterate inc 1)))))
 
-(fact "Testing 'get-all-val' function"
-      (fact "Testing get-all-val function with a player and dealer hand"
-            (b/get-all-val {:player-cards (list {:value "4" :suit "heart"} {:value "4" :suit "heart"})
-                          :dealer-card  (list {:value "king" :suit "heart"})})
-            => '("4" "4" "king"))
+(facts "Testing 'get-all-values' function"
+      (fact "Testing get-all-values function with a player and dealer hand"
+            (b/get-all-values {:player-cards (list {:value "4" :suit "heart"} {:value "4" :suit "heart"})
+                            :dealer-card  (list {:value "king" :suit "heart"})})
+            => '(4 4 10))
 
-      (fact "Testing get-all-val function with an empty hand"
-            (b/get-all-val {:player-cards '()
-                          :dealer-card  nil})
-            => '("")))
+      (fact "Testing get-all-values function with an empty hand"
+            (b/get-all-values {:player-cards '()
+                            :dealer-card  nil})
+            => falsey))
 
+(facts "Testing the 'counter-hit' function"
+       (fact "Counter calculation with no cards drawn."
+             (let [suit-count 4
+                   current-card {:player-cards []
+                                 :dealer-card  nil}
+                   player-card []
+                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
+                   counter (* fit-value suit-count)]
+               (counter-hit player-card current-card ) => counter))
+
+       (fact "No need to decrement counter."
+             (let [suit-count 4
+                   current-card {:player-cards (list {:value "10" :suit "heart"} {:value "king" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                   player-card {:card-1 {:value "10" :suit "heart"}
+                                :card-2 {:value "king" :suit "heart"}}
+                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
+                   counter (* fit-value suit-count)]
+               (counter-hit player-card current-card ) => counter))
+
+       (fact "Decrement counter by 2: Cards '7' and '6' are no longer available due to being drawn by the player."
+             (let [suit-count 4
+                   current-card {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                                 :dealer-card  (list {:value "king" :suit "heart"})}
+                   player-card {:card-1 {:value "7" :suit "heart"}
+                                :card-2 {:value "6" :suit "heart"}}
+                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
+                   counter (* fit-value suit-count)]
+               (counter-hit player-card current-card ) => (- counter 2))))
+
+(fact "Testing 'count-probability-hit' function in case divisor is 0"
+      (let [counter (atom 10)
+            divisor 0
+            current-card {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                          :dealer-card  (list {:value "king" :suit "heart"})}
+            player-card {:card-1 {:value "7" :suit "heart"}
+                         :card-2 {:value "6" :suit "heart"}}]
+        (count-probability-hit player-card current-card) => falsey))
+
+(fact "Testing 'subvector' function"
+      (fact "Testing subvector function with start and stop values inside the range"
+            (let [input-list [1 2 3 4 5 6 7 8 9 10 "ace" "jack" "queen" "king"]
+                  start-value 10
+                  end-value 14
+                  expected-result [10 "ace" "jack" "queen" "king"]]
+              (subvector input-list start-value end-value)
+              => expected-result))
+
+      (fact "Testing subvector function with start and stop values outside the range"
+            (let [input-list [1 2 3 4 5 6 7 8 9 10 "ace" "jack" "queen" "king"]
+                  start-value 20
+                  end-value 30
+                  expected-result falsey]
+              (subvector input-list start-value end-value)
+              => expected-result)))
+
+(facts "Testing 'start-value' function."
+       (fact "When dealer's card value is king."
+             (let [current-cards {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                                  :dealer-card  (list {:value "king" :suit "heart"})}]
+               (b/start-value current-cards) => 7))
+
+       (fact "When dealer's card value is 7."
+             (let [current-cards {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                                  :dealer-card  (list {:value "7" :suit "heart"})}]
+               (b/start-value current-cards) => 10))
+
+       (fact "When dealer's card value is 2 (less than 7)."
+             (let [current-cards {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                                  :dealer-card  (list {:value "2" :suit "heart"})}]
+               (b/start-value current-cards) => 1))
+
+       (fact "When dealer's card value is ace."
+             (let [current-cards {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
+                                  :dealer-card  (list {:value "ace" :suit "heart"})}]
+               (b/start-value current-cards) => 6)))
+
+
+(fact "Testing 'play' function"
+      (fact "Testing play function - Bust"
+            (let [cheat-sheet sheet/blackjack-cheat-sheet
+                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"} {:value "3" :suit "heart"})
+                                       :dealer-card  (list {:value "king" :suit "heart"})})
+                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
+                                      :card-2 {:value "9" :suit "heart"}
+                                      :card-3 {:value "3" :suit "heart"}})
+                  expected-result "End of game!"]
+              (play current-cards player-cards cheat-sheet)
+              => expected-result))
+
+      (fact "Testing play function - Can't calculate odds"
+            (let [cheat-sheet sheet/blackjack-cheat-sheet
+                  current-cards (atom {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"})
+                                       :dealer-card  (list {:value "5" :suit "heart"})})
+                  player-cards (atom {:card-1 {:value "10" :suit "heart"}
+                                      :card-2 {:value "9" :suit "heart"}})
+                  expected-result "Can't calculate odds!"]
+              (play current-cards player-cards cheat-sheet)
+              => expected-result)))
 
 
 
