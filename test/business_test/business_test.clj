@@ -257,6 +257,46 @@
               (play current-cards player-cards cheat-sheet)
               => expected-result)))
 
+(fact "Testing contain-element? function"
+      (fact "Testing contain-element? function with existing element"
+            (b/contain-element? [1 2 3] 2) => true)
+
+      (fact "Testing contain-element? function with non-existing element"
+            (b/contain-element? [1 2 3] 4) => falsey)
+
+      (fact "Testing contain-element? function with empty list"
+            (b/contain-element? [] 1) => falsey)
+
+      (fact "Testing contain-element? function with duplicate elements"
+            (b/contain-element? [1 2 2 3] 2) => true))
+
+(fact "Testing 'generate-list' function"
+      (fact "Testing generate-list function with positive n"
+            (b/generate-list 5) => (reverse '(1 2 3 4 5)))
+
+      (fact "Testing generate-list function with n = 1"
+            (b/generate-list 1) => '(1))
+
+      (fact "Testing generate-list function with n = 0"
+            (b/generate-list 0) => '())
+
+      (fact "Testing generate-list function with negative n"
+            (b/generate-list -3) => '())
+
+      (fact "Testing generate-list function with large n"
+            (b/generate-list 1000) => (reverse (take 1000 (iterate inc 1)))))
+
+(fact "Testing 'get-all-val' function"
+      (fact "Testing get-all-val function with a player and dealer hand"
+            (b/get-all-val {:player-cards (list {:value "4" :suit "heart"} {:value "4" :suit "heart"})
+                          :dealer-card  (list {:value "king" :suit "heart"})})
+            => '("4" "4" "king"))
+
+      (fact "Testing get-all-val function with an empty hand"
+            (b/get-all-val {:player-cards '()
+                          :dealer-card  nil})
+            => '("")))
+
 
 
 
