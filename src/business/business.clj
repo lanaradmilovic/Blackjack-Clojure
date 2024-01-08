@@ -1,6 +1,5 @@
 (ns business.business
   (:require [cheat-sheet.cheat-sheet :refer :all :as cs]
-    ;[probability.probability :refer :all :as p]
             [db.db :refer :all :as db]))
 
 (def suits ["club" "heart" "spade" "diamond"])
@@ -17,13 +16,13 @@
 (defn read-face
   "Reads the face value of a card from the user's keyboard input."
   []
-  (println "Face: ")
+  (println "Face: (2 3 4 5 6 7 8 9 10 'ace' 'jack' 'queen' 'king')")
   (flush)
   (read-line))
 (defn read-suit
   "Reads the suit of a card from the user's keyboard input."
   []
-  (println "Suit: ")
+  (println "Suit: ('club' 'heart' 'spade' 'diamond')")
   (flush)
   (read-line))
 
@@ -490,8 +489,7 @@
   []
   (let [current-cards (atom (read-card-from-keyboard))
         player-starting-hand (atom {:card-1 (first (get @current-cards :player-cards))
-                                    :card-2 (second (get @current-cards :player-cards))})
-        suits (suit-count suits)]
+                                    :card-2 (second (get @current-cards :player-cards))})]
     (db/execute-script)
     (play current-cards player-starting-hand cs/blackjack-cheat-sheet suits initial-deck)
     (println (db/select-game))))
