@@ -13,7 +13,7 @@
       (cs/value-for-ch "") => "")
 
 
-(fact "'update-sheet' should update value at a given position."
+(facts "'update-sheet' should update value at a given position."
       (let [initial-cheat-sheet (atom
                                   {:players-cards ["8" "9" "10" "11" "12" "13" "14" "15" "16" "17" "A2" "A3" "A4" "A5" "A6" "A7" "A8" "A9"
                                                    "22" "33" "44" "55" "66" "77" "88" "99" "1010" "AA"]
@@ -25,15 +25,14 @@
               (cs/update-sheet @initial-cheat-sheet 100 100 "new-value") => falsey)))
 
 (fact "Tests exception handling in case of non-existing player's and dealer's card."
-      (let
-        [initial-cheat-sheet (atom
+      (let [initial-cheat-sheet (atom
                                {:players-cards ["8" "9" "10" "11" "12" "13" "14" "15" "16" "17" "A2" "A3" "A4" "A5" "A6" "A7" "A8" "A9"
                                                 "22" "33" "44" "55" "66" "77" "88" "99" "1010" "AA"]
                                 :dealers-card  ["2" "3" "4" "5" "6" "7" "8" "9" "10" "A"]
                                 :values        (vec (repeat 28 (vec (repeat 10 "H"))))})]
         (cs/get-move @initial-cheat-sheet "invalid-row" "invalid-col") => falsey))
 
-(fact "Checks setting cheat sheet values."
+(facts "Checks setting cheat sheet values."
       (let [initial-cheat-sheet (atom
                                   {:players-cards ["8" "9" "10" "11" "12" "13" "14" "15" "16" "17" "A2" "A3" "A4" "A5" "A6" "A7" "A8" "A9"
                                                    "22" "33" "44" "55" "66" "77" "88" "99" "1010" "AA"]
@@ -53,7 +52,7 @@
               (cs/get-move @initial-cheat-sheet "invalid-row" "invalid-col") => falsey)))
 
 
-(fact "Tests update-cheat-sheet-cell."
+(fact "Tests 'update-cheat-sheet-cell' function."
       (let [initial-cheat-sheet (atom
                                   {:players-cards ["8" "9" "10" "11" "12" "13" "14" "15" "16" "17" "A2" "A3" "A4" "A5" "A6" "A7" "A8" "A9"
                                                    "22" "33" "44" "55" "66" "77" "88" "99" "1010" "AA"]
