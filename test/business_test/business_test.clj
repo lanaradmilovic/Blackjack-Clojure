@@ -236,18 +236,6 @@
                                 :card-3 {:value "5" :suit "heart"}}]
                (b/recommend-move cheat-sheet current-cards player-hand) => "Bust!")))
 
-(facts "Testing 'contain-element?' function."
-      (fact "Testing contain-element? function with existing element"
-            (b/contain-element? [1 2 3] 2) => true)
-
-      (fact "Testing contain-element? function with non-existing element"
-            (b/contain-element? [1 2 3] 4) => falsey)
-
-      (fact "Testing contain-element? function with empty list"
-            (b/contain-element? [] 1) => falsey)
-
-      (fact "Testing contain-element? function with duplicate elements"
-            (b/contain-element? [1 2 2 3] 2) => true))
 
 (facts "Testing 'generate-list' function."
       (fact "Testing generate-list function with positive n"
@@ -276,53 +264,6 @@
                                 :dealer-card  nil})
              => falsey))
 
-(facts "Testing the 'counter-hit' function."
-       (fact "Counter calculation with no cards drawn"
-             (let [suit-count 4
-                   current-card {:player-cards []
-                                 :dealer-card  nil}
-                   player-card []
-                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
-                   counter (* fit-value suit-count)]
-               (counter-hit player-card current-card b/suits) => counter))
-
-       (fact "No need to decrement counter"
-             (let [suit-count 4
-                   current-card {:player-cards (list {:value "10" :suit "heart"} {:value "king" :suit "heart"})
-                                 :dealer-card  (list {:value "king" :suit "heart"})}
-                   player-card {:card-1 {:value "10" :suit "heart"}
-                                :card-2 {:value "king" :suit "heart"}}
-                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
-                   counter (* fit-value suit-count)]
-               (counter-hit player-card current-card b/suits) => counter))
-
-       (fact "Decrement counter by 2: Cards '7' and '6' are no longer available due to being drawn by the player"
-             (let [suit-count 4
-                   current-card {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
-                                 :dealer-card  (list {:value "king" :suit "heart"})}
-                   player-card {:card-1 {:value "7" :suit "heart"}
-                                :card-2 {:value "6" :suit "heart"}}
-                   fit-value (- 21 (player-sum (adjust-ace-value! (atom player-card))))
-                   counter (* fit-value suit-count)]
-               (counter-hit player-card current-card b/suits) => (- counter 2))))
-
-(facts "Testing 'subvector' function."
-      (fact "Testing subvector function with start and stop values inside the range"
-            (let [input-list [1 2 3 4 5 6 7 8 9 10 "ace" "jack" "queen" "king"]
-                  start-value 10
-                  end-value 14
-                  expected-result [10 "ace" "jack" "queen" "king"]]
-              (subvector input-list start-value end-value)
-              => expected-result))
-
-      (fact "Testing subvector function with start and stop values outside the range"
-            (let [input-list [1 2 3 4 5 6 7 8 9 10 "ace" "jack" "queen" "king"]
-                  start-value 20
-                  end-value 30
-                  expected-result falsey]
-              (subvector input-list start-value end-value)
-              => expected-result)))
-
 (facts "Testing 'start-value' function."
        (fact "When dealer's card value is king"
              (let [current-cards {:player-cards (list {:value "7" :suit "heart"} {:value "6" :suit "heart"})
@@ -344,6 +285,18 @@
                                   :dealer-card  (list {:value "ace" :suit "heart"})}]
                (b/start-value current-cards) => 6)))
 
+(facts "Testing if 'subvec-dd' returns the correct subvector."
+       (fact "Index out of bounds exception when player total is greater than 18"
+             (subvec-dd {:card-1 {:value "10" :suit "heart"}
+                         :card-2 {:value "9" :suit "heart"}}
+                        [1 2 3 4 5 6 7 8 9 10 "jack" "queen" "king" "ace"])
+             => falsey)
+       (fact "'subvec-dd' handles values inside the range gracefully"
+             (subvec-dd {:card-1 {:value "10" :suit "heart"}
+                         :card-2 {:value "5" :suit "heart"}}
+                        [1 2 3 4 5 6 7 8 9 "jack" "queen" "king" "ace"])
+             => [3 4 5 6] ; So that total is >= 18, <= 21
+             ))
 
 (facts "Testing 'play' function."
       (fact "Testing play function - Bust"
@@ -354,7 +307,7 @@
                                       :card-2 {:value "9" :suit "heart"}
                                       :card-3 {:value "3" :suit "heart"}})
                   expected-result "End of game!"]
-              (play current-cards player-cards cheat-sheet b/suits b/initial-deck)
+              (b/play current-cards player-cards cheat-sheet b/suits b/initial-deck b/values)
               => expected-result))
 
       (fact "Testing play function - Can't calculate odds"
@@ -364,7 +317,7 @@
                   player-cards (atom {:card-1 {:value "10" :suit "heart"}
                                       :card-2 {:value "9" :suit "heart"}})
                   expected-result "Can't calculate odds!"]
-              (play current-cards player-cards cheat-sheet b/suits b/initial-deck)
+              (b/play current-cards player-cards cheat-sheet b/suits b/initial-deck b/values)
               => expected-result)))
 
 
