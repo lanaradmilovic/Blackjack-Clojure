@@ -13,7 +13,8 @@
 (defn num-passed-cards
   "Calculates number of player's passed cards in current game session including one dealer's revealed card."
   [player-card]
-  (+ (count player-card) 1))
+  (if (empty? player-card) 0
+                           (+ (count player-card) 1)))
 
 ; Probability of player winning = divisor / counter
 ; The probability calculation varies based on the recommended move (H, DD, P, S).
@@ -49,29 +50,30 @@
 (defn odds-certain-value
   "Calculates odds of a specific value occurring."
   [suits current-cards value initial-deck player-card]
-  (float (/ (counter suits current-cards value)
-            (divisor player-card initial-deck))))
+  (try (float (/ (counter suits current-cards value)
+                 (divisor player-card initial-deck)))
+       (catch ArithmeticException e
+         (println (.getMessage e)))))
 
 (defn get-all-odds
   "Calculates and compiles a list of probabilities for specific card values."
   [suits current-cards initial-deck player-card values]
   (reduce #(conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card)) '() values))
 
-; Hit
-(defn count-probability-h
-  "Calculates the total probability by summing odds for hitting."
-  [suits current-cards initial-deck player-card values]
-  (reduce + (get-all-odds suits current-cards initial-deck player-card values)))
+(defn count-probability
+  "Calculates the total probability by summing odds for doubling down."
+  [suits current-cards initial-deck player-starting-hand values]
+  (reduce + (get-all-odds suits current-cards initial-deck player-starting-hand values)))
 
-; Stand
 (defn value
-  "Converts a numeric card value to its corresponding string representation."
+  "Converts a numeric card value to its corresponding string representation.
+  For value 11, returns 'ace'.
+  For value 10, returns 'king' (and also 'jack' and 'queen' are covered since 'king' is the last in values).
+  For other values, returns the original numeric value."
   [val]
   (case val
     11 "ace"
-    12 "jack"
-    13 "queen"
-    14 "king"
+    10 "king" ; Also includes 'jack' and 'queen' since 'king' is the last in values.
     val))
 
 (defn subvector
@@ -85,8 +87,4 @@
        (catch IndexOutOfBoundsException _
          (println "Index out of bounds exception."))))
 
-; Double down
-(defn count-probability-dd
-  "Calculates the total probability by summing odds for doubling down."
-  [suits current-cards initial-deck player-starting-hand values]
-  (reduce + (get-all-odds suits current-cards initial-deck player-starting-hand values)))
+
