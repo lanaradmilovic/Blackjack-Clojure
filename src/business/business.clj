@@ -4,7 +4,7 @@
 
 (def suits ["club" "heart" "spade" "diamond"])
 (def numbers (range 1 11))
-(def faces ["ace" "jack" "queen" "king"])
+(def faces ["jack" "queen" "king" "ace"])
 (def values (concat numbers faces))
 
 (defn generate-card
@@ -70,7 +70,7 @@
          :dealer-card  dealer-card}))))
 
 ;(def current-cards (atom (read-card-from-keyboard)))
-
+;
 ;(def player-starting-hand (atom {:card-1 (first (get @current-cards :player-cards))
 ;                                 :card-2 (second (get @current-cards :player-cards))}))
 (defn get-nth-player-card
@@ -85,12 +85,10 @@
 (defn read-new-card
   "Reads new card from the keyboard input."
   []
-  (println "Face: ")
-  (flush)
-  (let [face (read-line)]
-    (println "Suit: ")
-    (flush)
-    (let [suit (read-line)]
+  (let [face (read-face)]
+    (valid-face face)
+    (let [suit (read-suit)]
+      (valid-suit suit)
       {:value face :suit suit})))
 
 (defn add-new-player-card
@@ -302,24 +300,34 @@
   "Returns list of both dealer and player cards values (Integer) by invoking 'card-value'."
   [hand]
   (try (concat (map #(card-value (get % :value)) (:player-cards hand))
-          [(card-value (:value (first (:dealer-card hand))))])
+               [(card-value (:value (first (:dealer-card hand))))])
        (catch Exception e
          (println (.getMessage e)))))
+(defn get-all-val
+  "Returns list of both dealer and player original cards values (String)."
+  [hand]
+  (try (concat (map #(get % :value) (:player-cards hand))
+               [(:value (first (:dealer-card hand)))])
+       (catch Exception e
+         (println (.getMessage e)))))
+
 (defn suit-count
   "Counts total number of suits."
   [suits]
   (count suits))
+
 (defn num-cards-in-deck
   "Counts total number of cards in deck."
   [initial-deck]
   (count initial-deck))
+
 (defn num-passed-cards
   "Calculates number of player's passed cards in current game session including one dealer's revealed card."
   [player-card]
   (+ (count player-card) 1))
 
 ; Probability of player winning = divisor / counter
-; The probability calculation varies based on the recommended move (H, DD, P) versus S.
+; The probability calculation varies based on the recommended move (H, DD, P, S).
 
 (defn divisor
   "Calculates the number of remaining cards in the deck available to be drawn."
@@ -327,34 +335,45 @@
   (- (num-cards-in-deck initial-deck) (num-passed-cards player-card)))
 
 (defn fit-value-hit
-  "Calculates the number of cards witch value wouldn't cause the player to go bust."
+  "Determines the highest card value to avoid exceeding 21 in a blackjack game.
+  If the current player total is 9 or less, the 'ace' (11) is considered the highest value. Otherwise, the function calculates
+  the highest value that won't result in a bust, by subtracting the current player total from 21."
   [player-card]
-  (- 21 (player-sum (adjust-ace-value! (atom player-card)))))
+  (if (> (player-sum (adjust-ace-value! (atom player-card))) 9) (- 21 (player-sum (adjust-ace-value! (atom player-card))))
+                                                                11))
 
-(defn counter-hit
-  "Calculates the counter as the total number of cards in the deck that wouldn't lead to player bust.
-  Decrements the counter values for cards no longer available due to being drawn by the player or dealer."
-  [player-card current-cards suits]
-  (let [counter (* (fit-value-hit player-card) (suit-count suits))
-        l2 (get-all-values current-cards)
-        l1 (generate-list (fit-value-hit player-card))]
-    (reduce (fn
-              [acc elem]
-              (if (contain-element? l1 elem)
-                (dec acc)
-                acc))
-            counter
-            l2)))
+(defn num-passed-certain-value
+  "Counts occurrences of a specific value in the game session."
+  [current-cards value]
+  (let [num-passed (atom 0)
+        l2 (get-all-val current-cards)]
+    (doseq [el l2]
+      (when (= el value)
+        (swap! num-passed inc)))
+    @num-passed))
+
+(defn counter
+  "Counts remaining occurrences of a specific value in the game deck."
+  [suits current-cards value]
+  (- (suit-count suits) (num-passed-certain-value current-cards value)))
+(defn odds-certain-value
+  "Calculates odds of a specific value occurring."
+  [suits current-cards value initial-deck player-card]
+  (float (/ (counter suits current-cards value)
+            (divisor player-card initial-deck))))
+(defn get-all-odds-hit
+  [suits current-cards initial-deck player-card]
+  (let [values (generate-list (fit-value-hit player-card))]
+    (reduce #(conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card)) '() values)))
+(defn count-probability-h
+  "Calculates the total probability by summing odds for hitting."
+  [suits current-cards initial-deck player-starting-hand]
+  ; get-all-vals ili get-all-values
+  (reduce + (get-all-odds-hit suits current-cards initial-deck player-starting-hand)))
 (defn count-probability-hit
-  "Scenario 1: Recommended move: 'H'
-  Calculates the probability of player not busting based on the count of fit-values (counter) and
-  the total count of cards (divisor). Returns the result as a formatted percentage."
+  "Returns probability of player not busting as a formatted percentage."
   [player-card current-cards initial-deck suits]
-  (try
-    (str (format "%.2f" (* 100 (float (/ (counter-hit player-card current-cards suits)
-                                         (divisor player-card initial-deck))))) "% of not busting.")
-    (catch ArithmeticException _
-      (println "Divide by zero exception."))))
+  (str (format "%.2f" (* 100 (float (count-probability-h suits current-cards initial-deck player-card)))) "% of not busting."))
 
 (defn value
   "Converts a numeric card value to its corresponding string representation."
@@ -392,57 +411,70 @@
   "Determines the ending value for generating a sequence of values for the dealer to hit.
    It is calculated as 21 (the maximum sum before going bust) minus the dealer's card value."
   [current-cards]
-  (if (<= (:value (dealer-values-for-cheat-sheet current-cards)) 6) 14
-                                                                    (- 21 (:value (dealer-values-for-cheat-sheet current-cards)))))
-(defn fit-value-stand
-  "Determines the number of cards the dealer must draw (according to game rules for dealer) without going bust."
-  [current-cards]
-  (count (subvector values (value (start-value current-cards)) (value (end-value current-cards)))))
-(defn counter-stand
-  "Calculates the counter as the total number of cards in the deck that wouldn't lead to dealer bust.
-  Decrements the counter values for cards no longer available due to being drawn by the player or dealer."
-  [current-cards suits]
-  (let [counter (* (fit-value-stand current-cards) (suit-count suits))
-        l2 (get-all-values current-cards)
-        l1 (generate-list (fit-value-stand current-cards))]
-    (reduce (fn
-              [acc elem]
-              (if (contain-element? l1 elem)
-                (dec acc)
-                acc))
-            counter
-            l2)))
+  (cond (<= (:value (dealer-values-for-cheat-sheet current-cards)) 6) 14
+        (= (:value (dealer-values-for-cheat-sheet current-cards)) 10) 14 ; All values included.
+        (= (:value (dealer-values-for-cheat-sheet current-cards)) 11) 13 ; All values instead of 'ace' included.
+        :else (- 21 (:value (dealer-values-for-cheat-sheet current-cards)))))
+
+(defn get-all-odds-certain-value-stand
+  [suits current-cards initial-deck player-starting-hand]
+  (let [values (subvector values (start-value current-cards) (end-value current-cards))]
+    (reduce #(if (>= (+ (card-value %2) (:value (dealer-values-for-cheat-sheet current-cards)))
+                     (player-sum player-starting-hand))
+               (conj %1 (odds-certain-value suits current-cards %2 initial-deck player-starting-hand))
+               ) '() values)))
 
 (defn count-probability-s
-  "Scenario 2: Recommended move: 'S'
-  Calculates the probability of the dealer winning when the player stands."
-  [current-cards suits]
-  (try (float (/ (counter-stand current-cards suits)
-                 (divisor current-cards suits)))
-       (catch ArithmeticException _
-         (println "Divide by zero exception."))))
+  "Calculates the total probability by summing odds for standing."
+  [suits current-cards initial-deck player-starting-hand]
+  (reduce + (get-all-odds-certain-value-stand suits current-cards initial-deck player-starting-hand)))
+
 
 (defn count-probability-stand
   "Calculates the probability of the player winning (subtract odds of dealer winning from 1) when the player stands.
   Returns the result as a formatted percentage."
-  [current-cards suits]
-  (str (format "%.2f" (* 100 (float (- 1 (count-probability-s current-cards suits))))) "% of winning."))
+  [suits current-cards initial-deck player-starting-hand]
+  (str (format "%.2f" (* 100 (float (- 1 (count-probability-s suits current-cards initial-deck player-starting-hand))))) "% of winning."))
 
+; Odds for double down are calculated as odds of player getting a strong hand (total between 18 and 21).
+(defn subvec-dd
+  "Returns a subvector of card values that bring the player's total from 18 to 21."
+  [player-card values]
+  (let [start (- 18 (player-sum (adjust-ace-value! (atom player-card))))
+        end (- 22 (player-sum (adjust-ace-value! (atom player-card))))]
+    (subvec (vec values) start end)))
+
+(defn get-all-odds-certain-value-dd
+  [suits current-cards initial-deck player-card values]
+  (let [values (subvec-dd player-card values)]              ; Strong hand is containing a value of 18 or higher
+    (reduce #(conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card)) '() values)))
+
+(defn count-probability-dd
+  "Calculates the total probability by summing odds for doubling down."
+  [suits current-cards initial-deck player-starting-hand values]
+  (reduce + (get-all-odds-certain-value-dd suits current-cards initial-deck player-starting-hand values)))
+
+(defn count-probability-double-down
+  "Returns probability of player getting strong hand when doubling down as a formatted percentage."
+  [suits current-cards initial-deck player-card values]
+  (str (format "%.2f" (* 100 (float (count-probability-dd suits current-cards initial-deck player-card values)))) "% of getting strong hand (total >= 18)."))
 
 (defn odds
   "Calculates the odds of winning based on the recommended move in a Blackjack game."
-  [current-cards player-cards cheat-sheet suits initial-deck]
+  [current-cards player-cards cheat-sheet suits initial-deck values]
   (let [move (recommend-move cheat-sheet current-cards player-cards)]
     (cond
-      (or (= move "H") (= move "DD") (= move "P"))          ; Odds are calculated the same way for recommended moves 'H', 'P' and 'DD'.
+      (or (= move "H") (= move "P"))                        ; Odds are calculated the same way for recommended moves 'H' and 'P'.
       (count-probability-hit player-cards current-cards initial-deck suits)
       (= move "S")
-      (count-probability-stand current-cards suits)
+      (count-probability-stand suits current-cards initial-deck player-cards)
+      (= move "DD")
+      (count-probability-double-down suits current-cards initial-deck player-cards values)
       :else "Unknown move!")))
 
 (defn play
   "Encapsulates game logic."
-  [current-cards player-cards cheat-sheet suits initial-deck]
+  [current-cards player-cards cheat-sheet suits initial-deck values]
   (let [move (recommend-move @cheat-sheet @current-cards @player-cards)] ; Move recommendation according to Blackjack cheat sheet.
     (db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move) ; Persisting the current game session data into the database.
     (println "Play: " move)
@@ -451,34 +483,35 @@
       (if (> (player-sum (adjust-ace-value! player-cards)) 21)
         "Bust: 100%"                                        ; If sum of player's hand is greater than 21, player goes bust.
         (if (> (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 7, calculating the odds becomes impossible, as the unrevealed card can take on any value without the risk of the dealer going bust.
-          (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck))
+          (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values))
           "Can't calculate odds!"))
       (= move "H")                                          ; Hit
       (do
-        (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck))
+        (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values))
         (add-both! current-cards player-cards)
-        (play current-cards player-cards cheat-sheet suits initial-deck))
+        (play current-cards player-cards cheat-sheet suits initial-deck values))
       (= move "DD")                                         ; Double down
       (do
+        (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values))
         (add-both! current-cards player-cards)              ; In case of DD, player can hit only one more card.
-        (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck))
-        (db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move)
-        )
+        (println "Play: S")                                 ; Then player must stand.
+        (println (count-probability-stand suits @current-cards initial-deck @player-cards))
+        (db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move))
       (= move "P")                                          ; Split
       (let [player-1 (atom {:card-1 (:card-1 @player-cards)}) ; Extract the first card for the first split hand.
             player-2 (atom {:card-1 (:card-2 @player-cards)}) ; Extract the second card for the second split hand.
-            current-1 (atom {:player-cards (:card-1 @player-1) :dealer-card (:dealer-card @current-cards)})
-            current-2 (atom {:player-cards (:card-1 @player-2) :dealer-card (:dealer-card @current-cards)})]
+            current-1 (atom {:player-cards (list (:card-1 @player-1)) :dealer-card (:dealer-card @current-cards)})
+            current-2 (atom {:player-cards (list (:card-1 @player-2)) :dealer-card (:dealer-card @current-cards)})]
         (do
           (println "! First card ! Play:  H")
-          (println (odds @current-1 @player-1 @cheat-sheet suits initial-deck))
+          (println (odds @current-1 @player-1 @cheat-sheet suits initial-deck values))
           (add-both! current-1 player-1)
-          (play current-1 player-1 cheat-sheet suits initial-deck)
+          (play current-1 player-1 cheat-sheet suits initial-deck values)
           ;(println @player-1)
           (println "! Second card ! Play:  H")
-          (println (odds @current-2 @player-2 @cheat-sheet suits initial-deck))
+          (println (odds @current-2 @player-2 @cheat-sheet suits initial-deck values))
           (add-both! current-2 player-2)
-          (play current-2 player-2 cheat-sheet suits initial-deck)
+          (play current-2 player-2 cheat-sheet suits initial-deck values)
           ; (println @player-2)
           ))
       :else
@@ -490,8 +523,10 @@
   (let [current-cards (atom (read-card-from-keyboard))
         player-starting-hand (atom {:card-1 (first (get @current-cards :player-cards))
                                     :card-2 (second (get @current-cards :player-cards))})]
+    (println @current-cards)
+    (println @player-starting-hand)
     (db/execute-script)
-    (play current-cards player-starting-hand cs/blackjack-cheat-sheet suits initial-deck)
+    (play current-cards player-starting-hand cs/blackjack-cheat-sheet suits initial-deck values)
     (println (db/select-game))))
 
 
