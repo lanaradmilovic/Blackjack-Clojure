@@ -1,6 +1,7 @@
 (ns business.business
   (:require [cheat-sheet.cheat-sheet :refer :all :as cs]
-            [db.db :refer :all :as db]))
+            [db.db :refer :all :as db]
+            [probability.probability :refer :all :as p]))
 
 (def suits ["club" "heart" "spade" "diamond"])
 (def numbers (range 1 11))
@@ -280,12 +281,7 @@
 
       :else "Not covered in cheat sheet.")))                ; Default case, not covered by the cheat sheet.
 
-
-; Counting probability
-(defn contain-element?
-  "Checks if a specified element is present in the given list."
-  [l e]
-  (some #(= % e) l))
+; Counting probabilities
 
 (defn generate-list
   "Generates a list of integers starting from 1 up to the specified number `n` (inclusive)."
@@ -295,7 +291,6 @@
                  (if (= (+ n 1) i)
                    l
                    (recur (inc i) num (cons i l))))))
-
 (defn get-all-values
   "Returns list of both dealer and player cards values (Integer) by invoking 'card-value'."
   [hand]
@@ -303,36 +298,6 @@
                [(card-value (:value (first (:dealer-card hand))))])
        (catch Exception e
          (println (.getMessage e)))))
-(defn get-all-val
-  "Returns list of both dealer and player original cards values (String)."
-  [hand]
-  (try (concat (map #(get % :value) (:player-cards hand))
-               [(:value (first (:dealer-card hand)))])
-       (catch Exception e
-         (println (.getMessage e)))))
-
-(defn suit-count
-  "Counts total number of suits."
-  [suits]
-  (count suits))
-
-(defn num-cards-in-deck
-  "Counts total number of cards in deck."
-  [initial-deck]
-  (count initial-deck))
-
-(defn num-passed-cards
-  "Calculates number of player's passed cards in current game session including one dealer's revealed card."
-  [player-card]
-  (+ (count player-card) 1))
-
-; Probability of player winning = divisor / counter
-; The probability calculation varies based on the recommended move (H, DD, P, S).
-
-(defn divisor
-  "Calculates the number of remaining cards in the deck available to be drawn."
-  [player-card initial-deck]
-  (- (num-cards-in-deck initial-deck) (num-passed-cards player-card)))
 
 (defn fit-value-hit
   "Determines the highest card value to avoid exceeding 21 in a blackjack game.
@@ -342,59 +307,11 @@
   (if (> (player-sum (adjust-ace-value! (atom player-card))) 9) (- 21 (player-sum (adjust-ace-value! (atom player-card))))
                                                                 11))
 
-(defn num-passed-certain-value
-  "Counts occurrences of a specific value in the game session."
-  [current-cards value]
-  (let [num-passed (atom 0)
-        l2 (get-all-val current-cards)]
-    (doseq [el l2]
-      (when (= el value)
-        (swap! num-passed inc)))
-    @num-passed))
-
-(defn counter
-  "Counts remaining occurrences of a specific value in the game deck."
-  [suits current-cards value]
-  (- (suit-count suits) (num-passed-certain-value current-cards value)))
-(defn odds-certain-value
-  "Calculates odds of a specific value occurring."
-  [suits current-cards value initial-deck player-card]
-  (float (/ (counter suits current-cards value)
-            (divisor player-card initial-deck))))
-(defn get-all-odds-hit
-  [suits current-cards initial-deck player-card]
-  (let [values (generate-list (fit-value-hit player-card))]
-    (reduce #(conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card)) '() values)))
-(defn count-probability-h
-  "Calculates the total probability by summing odds for hitting."
-  [suits current-cards initial-deck player-starting-hand]
-  ; get-all-vals ili get-all-values
-  (reduce + (get-all-odds-hit suits current-cards initial-deck player-starting-hand)))
 (defn count-probability-hit
   "Returns probability of player not busting as a formatted percentage."
   [player-card current-cards initial-deck suits]
-  (str (format "%.2f" (* 100 (float (count-probability-h suits current-cards initial-deck player-card)))) "% of not busting."))
-
-(defn value
-  "Converts a numeric card value to its corresponding string representation."
-  [val]
-  (case val
-    11 "ace"
-    12 "jack"
-    13 "queen"
-    14 "king"
-    val))
-
-(defn subvector
-  "Generates a subvector from an input list based on the specified start and stop values."
-  [input-list a b]
-  (try (let [start-element (value a)
-             stop-element (value b)
-             start-index (.indexOf input-list start-element)
-             stop-index (inc (.indexOf input-list stop-element))]
-         (subvec (vec input-list) start-index stop-index))
-       (catch IndexOutOfBoundsException _
-         (println "Index out of bounds exception."))))
+  (let [values (generate-list (fit-value-hit player-card))]
+    (str (format "%.2f" (* 100 (float (p/count-probability-h suits current-cards initial-deck player-card values)))) "% of not busting.")))
 
 ; Game rules for dealer: If the total is 16 or under, they must take a card.
 ; The dealer must continue to take cards until the total is 17 or more, at which point the dealer must stand.
@@ -416,25 +333,28 @@
         (= (:value (dealer-values-for-cheat-sheet current-cards)) 11) 13 ; All values instead of 'ace' included.
         :else (- 21 (:value (dealer-values-for-cheat-sheet current-cards)))))
 
-(defn get-all-odds-certain-value-stand
-  [suits current-cards initial-deck player-starting-hand]
-  (let [values (subvector values (start-value current-cards) (end-value current-cards))]
-    (reduce #(if (>= (+ (card-value %2) (:value (dealer-values-for-cheat-sheet current-cards)))
-                     (player-sum player-starting-hand))
-               (conj %1 (odds-certain-value suits current-cards %2 initial-deck player-starting-hand))
-               ) '() values)))
+(defn get-all-odds-stand
+  "Generates odds for dealer's winning values: total > 17, < 22, and surpassing player's hand."
+  [suits current-cards initial-deck player-card values]
+  (reduce #(if (>= (+ (card-value %2)
+                      (:value (dealer-values-for-cheat-sheet current-cards)))
+                   (player-sum player-card))
+             (conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card))
+             %1)
+          '() values))
 
 (defn count-probability-s
   "Calculates the total probability by summing odds for standing."
-  [suits current-cards initial-deck player-starting-hand]
-  (reduce + (get-all-odds-certain-value-stand suits current-cards initial-deck player-starting-hand)))
+  [suits current-cards initial-deck player-card values]
+  (reduce + (get-all-odds-stand suits current-cards initial-deck player-card values)))
 
 
 (defn count-probability-stand
   "Calculates the probability of the player winning (subtract odds of dealer winning from 1) when the player stands.
   Returns the result as a formatted percentage."
-  [suits current-cards initial-deck player-starting-hand]
-  (str (format "%.2f" (* 100 (float (- 1 (count-probability-s suits current-cards initial-deck player-starting-hand))))) "% of winning."))
+  [suits current-cards initial-deck player-card]
+  (let [values (subvector values (start-value current-cards) (end-value current-cards))]
+    (str (format "%.2f" (* 100 (float (- 1 (count-probability-s suits current-cards initial-deck player-card values))))) "% of winning.")))
 
 ; Odds for double down are calculated as odds of player getting a strong hand (total between 18 and 21).
 (defn subvec-dd
@@ -444,20 +364,12 @@
         end (- 22 (player-sum (adjust-ace-value! (atom player-card))))]
     (subvec (vec values) start end)))
 
-(defn get-all-odds-certain-value-dd
-  [suits current-cards initial-deck player-card values]
-  (let [values (subvec-dd player-card values)]              ; Strong hand is containing a value of 18 or higher
-    (reduce #(conj %1 (odds-certain-value suits current-cards %2 initial-deck player-card)) '() values)))
-
-(defn count-probability-dd
-  "Calculates the total probability by summing odds for doubling down."
-  [suits current-cards initial-deck player-starting-hand values]
-  (reduce + (get-all-odds-certain-value-dd suits current-cards initial-deck player-starting-hand values)))
 
 (defn count-probability-double-down
   "Returns probability of player getting strong hand when doubling down as a formatted percentage."
   [suits current-cards initial-deck player-card values]
-  (str (format "%.2f" (* 100 (float (count-probability-dd suits current-cards initial-deck player-card values)))) "% of getting strong hand (total >= 18)."))
+  (let [vals (subvec-dd player-card values)]
+    (str (format "%.2f" (* 100 (float (count-probability-dd suits current-cards initial-deck player-card vals)))) "% of getting strong hand (total >= 18).")))
 
 (defn odds
   "Calculates the odds of winning based on the recommended move in a Blackjack game."
