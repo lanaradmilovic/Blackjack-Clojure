@@ -105,7 +105,8 @@
 (defn add-new-current-card
   "Adds a new card to the current game session cards."
   [game-session new-card]
-  (update game-session :player-cards (fn [existing-cards] (conj existing-cards new-card))))
+  (update game-session :player-cards (fn [existing-cards]
+                                       (conj existing-cards new-card))))
 
 (defn add-new-current-card!
   "Atomically adds a new card to the current game session cards using 'add-new-current-card'."
@@ -115,11 +116,12 @@
 (defn add-both!
   "Adds a new card to both the player's starting hand and the current game session cards."
   [game-session player-hand]
-  (try (let [new-card (read-new-card)]
-         (add-new-player-card! player-hand new-card)
-         (add-new-current-card! game-session new-card))
-       (catch ClassCastException _
-         (println "Expected an atom."))))
+  (try
+    (let [new-card (read-new-card)]
+      (add-new-player-card! player-hand new-card)
+      (add-new-current-card! game-session new-card))
+    (catch ClassCastException _
+      (println "Expected an atom."))))
 
 (defn get-player-value
   [c n]
@@ -252,7 +254,6 @@
   (let [current-player-sum (player-sum (adjust-ace-value! (atom player-hand)))
         dealer-card (ace-to-A (get-dealer-value current-cards))
         player-card (str current-player-sum)]
-
     (cond
       (> current-player-sum 21) "Bust!"
       (= current-player-sum 21) "Blackjack!"                ; Player has a Blackjack.
@@ -278,7 +279,6 @@
       (< current-player-sum 9) (cs/get-move cheat-sheet "8" dealer-card) ; Player has 2 cards, and current sum is less than 9.
       (and (> current-player-sum 17)
            (< current-player-sum 22)) (cs/get-move cheat-sheet "17" dealer-card) ; Player has 2 cards, and current sum is greater than 17 and less than 22.
-
       :else "Not covered in cheat sheet.")))                ; Default case, not covered by the cheat sheet.
 
 ; Counting probabilities
@@ -315,23 +315,23 @@
 
 ; Game rules for dealer: If the total is 16 or under, they must take a card.
 ; The dealer must continue to take cards until the total is 17 or more, at which point the dealer must stand.
-; If the dealer's revealed card is less than 7, the unrevealed card can take on any value without the risk of the dealer going bust.
-; (start-value is 1, end-value is 14, meaning: all values can be considered)
+
 (defn start-value
   "Determines the starting value for generating a sequence of values for the dealer to hit.
    It is calculated as 17 (the minimum sum for the dealer to stand) minus the dealer's card value."
   [current-cards]
-  (if (<= (:value (dealer-values-for-cheat-sheet current-cards)) 6) 1
-                                                                    (- 17 (:value (dealer-values-for-cheat-sheet current-cards)))))
+  (if (= (:value (dealer-values-for-cheat-sheet current-cards)) 6) 14 ; Only 'ace' is considered.
+                                                                   (- 17 (:value (dealer-values-for-cheat-sheet current-cards)))))
 
 (defn end-value
   "Determines the ending value for generating a sequence of values for the dealer to hit.
    It is calculated as 21 (the maximum sum before going bust) minus the dealer's card value."
   [current-cards]
-  (cond (<= (:value (dealer-values-for-cheat-sheet current-cards)) 6) "ace"
-        (= (:value (dealer-values-for-cheat-sheet current-cards)) 10) "ace" ; All values included.
-        (= (:value (dealer-values-for-cheat-sheet current-cards)) 11) "king" ; All values instead of 'ace' included.
-        :else (- 21 (:value (dealer-values-for-cheat-sheet current-cards)))))
+  (cond
+    (= (:value (dealer-values-for-cheat-sheet current-cards)) 6) 14 ; Only 'ace' is considered.
+    (= (:value (dealer-values-for-cheat-sheet current-cards)) 11) 13 ; All values instead of 'ace' included.
+    (> (:value (dealer-values-for-cheat-sheet current-cards)) 7) 14 ; All values included.
+    :else (- 21 (:value (dealer-values-for-cheat-sheet current-cards)))))
 
 (defn get-all-odds-stand
   "Generates odds for dealer's winning values: total > 17, < 22, and surpassing player's hand."
@@ -347,7 +347,6 @@
   "Calculates the total probability by summing odds for standing."
   [suits current-cards initial-deck player-card values]
   (reduce + (get-all-odds-stand suits current-cards initial-deck player-card values)))
-
 
 (defn count-probability-stand
   "Calculates the probability of the player winning (subtract odds of dealer winning from 1) when the player stands.
@@ -370,7 +369,8 @@
   "Returns probability of player getting strong hand when doubling down as a formatted percentage."
   [suits current-cards initial-deck player-card values]
   (let [vals (subvec-dd player-card values)]
-    (str (format "%.2f" (* 100 (float (count-probability suits current-cards initial-deck player-card vals)))) "% of getting strong hand (total >= 18).")))
+    (str (format "%.2f" (* 100 (float (count-probability suits current-cards initial-deck player-card vals))))
+         "% of getting strong hand (total >= 18).")))
 
 (defn odds
   "Calculates the odds of winning based on the recommended move in a Blackjack game."
@@ -395,7 +395,7 @@
       (= move "S")                                          ; Stand
       (if (> (player-sum (adjust-ace-value! player-cards)) 21)
         "Bust: 100%"                                        ; If sum of player's hand is greater than 21, player goes bust.
-        (if (> (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 7, calculating the odds becomes impossible, as the unrevealed card can take on any value without the risk of the dealer going bust.
+        (if (>= (:value (dealer-values-for-cheat-sheet @current-cards)) 6) ; If the dealer's revealed card is less than 6, calculating the odds becomes impossible, as the unrevealed card can take on any value without the chance of the dealer standing.
           (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values))
           "Can't calculate odds!"))
       (= move "H")                                          ; Hit
@@ -420,13 +420,10 @@
           (println (odds @current-1 @player-1 @cheat-sheet suits initial-deck values))
           (add-both! current-1 player-1)
           (play current-1 player-1 cheat-sheet suits initial-deck values)
-          ;(println @player-1)
           (println "! Second card ! Play:  H")
           (println (odds @current-2 @player-2 @cheat-sheet suits initial-deck values))
           (add-both! current-2 player-2)
-          (play current-2 player-2 cheat-sheet suits initial-deck values)
-          ; (println @player-2)
-          ))
+          (play current-2 player-2 cheat-sheet suits initial-deck values)))
       :else
       "End of game!")))
 
@@ -436,8 +433,6 @@
   (let [current-cards (atom (read-card-from-keyboard))
         player-starting-hand (atom {:card-1 (first (get @current-cards :player-cards))
                                     :card-2 (second (get @current-cards :player-cards))})]
-    (println @current-cards)
-    (println @player-starting-hand)
     (db/execute-script)
     (play current-cards player-starting-hand cs/blackjack-cheat-sheet suits initial-deck values)
     (println (db/select-game))))
