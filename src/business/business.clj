@@ -432,9 +432,6 @@
       (do
         (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values num-decks))
         (add-both! current-cards player-cards)              ; In case of DD, player can hit only one more card.
-        ;(println "Play: S")                                 ; Then player must stand.
-        ;(println (count-probability-stand suits @current-cards initial-deck @player-cards num-decks))
-        ;(db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move))
         (play current-cards player-cards cheat-sheet suits initial-deck values num-decks))
       (= move "P")                                          ; Split
       (let [player-1 (atom {:card-1 (:card-1 @player-cards)}) ; Extract the first card for the first split hand.
