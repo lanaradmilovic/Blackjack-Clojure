@@ -385,7 +385,7 @@
   "Returns a subvector of card values that bring the player's total from 18 to 21."
   [player-card values]
   (try (let [start (- 19 (player-sum (adjust-ace-value! (atom player-card))))
-             end (- 21 (player-sum (adjust-ace-value! (atom player-card))))]
+             end (- 22 (player-sum (adjust-ace-value! (atom player-card))))]
          (p/subvector (vec values) start end))
        (catch IndexOutOfBoundsException _
          (println "Index out of bounds exception."))))
@@ -414,7 +414,7 @@
   "Encapsulates game logic."
   [current-cards player-cards cheat-sheet suits initial-deck values num-decks]
   (let [move (recommend-move @cheat-sheet @current-cards @player-cards)] ; Move recommendation according to Blackjack cheat sheet.
-    (db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move) ; Persisting the current game session data into the database.
+    (db/insert-game (player-sum (adjust-ace-value! player-cards)) (get-dealer-value @current-cards) move) ; Persisting the current game session data into the database.
     (println "Play: " move)
     (cond
       (= move "S")                                          ; Stand
@@ -432,9 +432,10 @@
       (do
         (println (odds @current-cards @player-cards @cheat-sheet suits initial-deck values num-decks))
         (add-both! current-cards player-cards)              ; In case of DD, player can hit only one more card.
-        (println "Play: S")                                 ; Then player must stand.
-        (println (count-probability-stand suits @current-cards initial-deck @player-cards num-decks))
-        (db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move))
+        ;(println "Play: S")                                 ; Then player must stand.
+        ;(println (count-probability-stand suits @current-cards initial-deck @player-cards num-decks))
+        ;(db/insert-game (player-sum @player-cards) (get-dealer-value @current-cards) move))
+        (play current-cards player-cards cheat-sheet suits initial-deck values num-decks))
       (= move "P")                                          ; Split
       (let [player-1 (atom {:card-1 (:card-1 @player-cards)}) ; Extract the first card for the first split hand.
             player-2 (atom {:card-1 (:card-2 @player-cards)}) ; Extract the second card for the second split hand.
