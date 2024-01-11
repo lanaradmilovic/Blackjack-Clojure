@@ -26,14 +26,15 @@
             initial-deck '()
             current-cards {:player-cards (list {:value "10" :suit "heart"} {:value "9" :suit "heart"})
                            :dealer-card  (list {:value "king" :suit "heart"})}
-            value 2]
-        (p/odds-certain-value b/suits current-cards value initial-deck player-card) => falsey))
+            value 2
+            num-decks 8]
+        (p/odds-certain-value b/suits current-cards value initial-deck player-card 8) => falsey))
 
 (facts "Testing 'subvector' function."
        (fact "Testing subvector function with start and stop values inside the range"
              (let [input-list [1 2 3 4 5 6 7 8 9 10 "ace" "jack" "queen" "king"]
                    start-value 10
-                   end-value ""
+                   end-value "king"
                    expected-result [10 "ace" "jack" "queen" "king"]]
                (subvector input-list start-value end-value)
                => expected-result))
