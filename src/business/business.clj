@@ -24,75 +24,66 @@
                                                       (do
                                                         (println "Invalid input. Defaulting to 1 deck.")
                                                         1))))
-
 (defn read-face
-  "Reads the face value of a card from the user's keyboard input."
+  "Reads the face value entered by the user."
   []
-  (println "Face: (2 3 4 5 6 7 8 9 10 'ace' 'jack' 'queen' 'king')")
-  (flush)
-  (read-line))
+  (loop [remaining-attempts 3]
+    (when (> remaining-attempts 0)
+      (println "Face: (2 3 4 5 6 7 8 9 10 'ace' 'jack' 'queen' 'king')")
+      (let [face (read-line)
+            valid-faces #{"1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "ace" "jack" "queen" "king"}]
+        (if (valid-faces face)
+          face
+          (do
+            (println "Invalid input. The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
+            (if (zero? (dec remaining-attempts))
+              (do
+                (println "You've exceeded the maximum number of attempts. Exiting...")
+                (System/exit 1))
+              (do
+                (println (str "You have " (dec remaining-attempts) " attempts remaining."))
+                (recur (dec remaining-attempts))))))))))
+
 (defn read-suit
-  "Reads the suit of a card from the user's keyboard input."
+  "Reads the suit entered by the user."
   []
-  (println "Suit: ('club' 'heart' 'spade' 'diamond')")
-  (flush)
-  (read-line))
-
-(defn valid-face
-  "Validates the face value entered by the user."
-  [f remaining-attempts]
-  (let [f (if (<= (count f) 2)
-            (Integer/parseInt f)
-            f)]
-    (if (some #{f} values) f
-                           (if (<= remaining-attempts 1)
-                             (do
-                               (println "You've exceeded the maximum number of attempts. Exiting...")
-                               (System/exit 1))
-                             (do
-                               (println (str "Invalid input. You have " (- remaining-attempts 1) " attempts remaining."))
-                               (println "The value must be one of the following: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'ace', 'jack', 'queen', 'king'.")
-                               (valid-face (read-face) (dec remaining-attempts)))))))
-
-(defn valid-suit
-  "Validates the suit entered by the user."
-  [s remaining-attempts]
-  (if (some #{s} suits) s
-                        (if (<= remaining-attempts 1)
-                          (do
-                            (println "You've exceeded the maximum number of attempts. Exiting...")
-                            (System/exit 1))
-                          (do
-                            (println (str "Invalid input. You have " (- remaining-attempts 1) " attempts remaining."))
-                            (println "The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
-                            (valid-suit (read-suit) (dec remaining-attempts))))))
+  (loop [remaining-attempts 3]
+    (when (> remaining-attempts 0)
+      (println "Suit: ('club' 'heart' 'spade' 'diamond')")
+      (let [suit (read-line)
+            valid-suits #{"club" "heart" "spade" "diamond"}]
+        (if (valid-suits suit)
+          suit
+          (do
+            (println "Invalid input. The suit must be one of the following: 'club', 'heart', 'spade', 'diamond'.")
+            (if (zero? (dec remaining-attempts))
+              (do
+                (println "You've exceeded the maximum number of attempts. Exiting...")
+                (System/exit 1))
+              (do
+                (println (str "You have " (dec remaining-attempts) " attempts remaining."))
+                (recur (dec remaining-attempts))))))))))
 
 (defn read-card-from-keyboard
   "Reads player's and dealer's cards from the keyboard input.
   Prompts the user to enter the face and suit of each card."
   []
-  (loop [i 1 player-cards '() dealer-card '() max-attempts 3]
+  (loop [i 1 player-cards '() dealer-card '()]
     (if (< i 3)
       (do
         (println "Enter YOUR " i ". card: ")
-        (let [face (read-face)]
-          (valid-face face max-attempts)
-          (let [suit (read-suit)]
-            (valid-suit suit max-attempts)
-            (recur (inc i) (conj player-cards (generate-card face suit)) dealer-card max-attempts))))
+        (let [face (read-face)
+              suit (read-suit)]
+          (recur (inc i) (conj player-cards (generate-card face suit)) dealer-card)))
       (if (= i 3)
         (do
           (println "Enter DEALER'S covered card: ")
           (flush)
-          (let [face (read-face)]
-            (valid-face face max-attempts)
-            (let [suit (read-suit)]
-              (valid-suit suit max-attempts)
-              (recur (inc i) player-cards (conj dealer-card (generate-card face suit)) max-attempts))))
+          (let [face (read-face)
+                suit (read-suit)]
+            (recur (inc i) player-cards (conj dealer-card (generate-card face suit)))))
         {:player-cards player-cards
          :dealer-card  dealer-card}))))
-
-
 
 ;(def current-cards (atom (read-card-from-keyboard)))
 ;
@@ -111,11 +102,8 @@
   "Reads new card from the keyboard input."
   []
   (let [face (read-face)
-        max-attempts 3]
-    (valid-face face max-attempts)
-    (let [suit (read-suit)]
-      (valid-suit suit max-attempts)
-      {:value face :suit suit})))
+        suit (read-suit)]
+    {:value face :suit suit}))
 
 (defn add-new-player-card
   "Adds a new card to the player's starting hand."
